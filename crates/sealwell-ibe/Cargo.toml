@@ -1,0 +1,31 @@
+[package]
+name = "sealwell-ibe"
+version = "0.1.0"
+edition = "2021"
+description = "Boneh-Franklin IBE (FO/CCA) over NEAR MPC Confidential Key Derivation identities"
+license = "MIT OR Apache-2.0"
+
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[features]
+default = []
+wasm = ["dep:wasm-bindgen", "getrandom/js"]
+
+[dependencies]
+ark-bls12-381 = "0.4"
+ark-ec = "0.4"
+ark-ff = "0.4"
+ark-serialize = "0.4"
+sha2 = "0.10"
+sha3 = "0.10"
+chacha20poly1305 = { version = "0.10", default-features = false, features = ["alloc"] }
+bs58 = "0.5"
+rand_core = { version = "0.6", features = ["getrandom"] }
+getrandom = "0.2"
+thiserror = "1"
+wasm-bindgen = { version = "0.2", optional = true }
+hex = "0.4"
+
+[dev-dependencies]
+rand = "0.8"
