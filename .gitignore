@@ -11,3 +11,4 @@ kp.json
 *_key.json
 **/credentials/
 .near-credentials/
+accounts.json
