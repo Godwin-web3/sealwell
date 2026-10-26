@@ -1,0 +1,4 @@
+[workspace]
+resolver = "2"
+members = ["crates/sealwell-ibe"]
+# contracts/sealwell-auction and cli/ are stubs; added to members when implemented.

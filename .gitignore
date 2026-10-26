@@ -1,0 +1,13 @@
+/target
+**/target
+*.wasm
+node_modules/
+.env
+.env.*
+# Never commit keys (gitleaks-safe)
+kp.json
+*.key
+*.pem
+*_key.json
+**/credentials/
+.near-credentials/
