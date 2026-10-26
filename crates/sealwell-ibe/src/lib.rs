@@ -312,8 +312,58 @@ pub fn verify_opening(
     &encrypt_with_sigma(mpk, app_id, msg, sigma) == ct
 }
 
+/// The FO scalar `r = H3(σ, M, app_id)`; a valid ciphertext has `U = r·G2`.
+/// Exposed so an on-chain verifier can check `U` with a host multiexp.
+pub fn opening_scalar(app_id: &AppId, msg: &[u8], sigma: &[u8; SIGMA_LEN]) -> Fr {
+    h3(sigma, msg, app_id)
+}
+
+/// Opening check that uses the *released* identity key instead of re-encrypting:
+/// recomputes `σ' = V ⊕ H2(e(key, U))`, requires `σ' == σ`, and requires the AEAD
+/// to open to `msg`. Together with the caller checking `U == opening_scalar(..)·G2`
+/// (and `key` being verified against `mpk`), this is exactly the FO check performed
+/// by [`decrypt`], so a ciphertext the keeper cannot decrypt can't be "opened" either.
+/// Costs one pairing and no hash-to-curve / G2 scalar multiplication.
+pub fn verify_opening_with_key(
+    app_id: &AppId,
+    key: &G1Affine,
+    u: &G2Affine,
+    v: &[u8; SIGMA_LEN],
+    w: &[u8],
+    msg: &[u8],
+    sigma: &[u8; SIGMA_LEN],
+) -> bool {
+    let g = Bls12_381::pairing(*key, *u);
+    let mask = h2(&gt_bytes(&g.0), u);
+    for i in 0..SIGMA_LEN {
+        if v[i] ^ mask[i] != sigma[i] {
+            return false;
+        }
+    }
+    let cipher = ChaCha20Poly1305::new((&h4(sigma)).into());
+    match cipher.decrypt(Nonce::from_slice(&[0u8; 12]), Payload { msg: w, aad: &aad(u, v, app_id) }) {
+        Ok(m) => m == msg,
+        Err(_) => false,
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn opening_with_key_matches_fo() {
+        let mut rng = StdRng::seed_from_u64(77);
+        let msk = Fr::rand(&mut rng);
+        let mpk = (G2Affine::generator() * msk).into_affine();
+        let app_id = derive_app_id("x.testnet", "sealwell/batch/3");
+        let key = (identity_point(&mpk, &app_id) * msk).into_affine();
+        let (ct, sigma) = encrypt(&mut rng, &mpk, &app_id, b"order");
+        assert_eq!((G2Affine::generator() * opening_scalar(&app_id, b"order", &sigma)).into_affine(), ct.u);
+        assert!(verify_opening_with_key(&app_id, &key, &ct.u, &ct.v, &ct.w, b"order", &sigma));
+        assert!(!verify_opening_with_key(&app_id, &key, &ct.u, &ct.v, &ct.w, b"other", &sigma));
+        let mut bad_v = ct.v; bad_v[0] ^= 1;
+        assert!(!verify_opening_with_key(&app_id, &key, &ct.u, &bad_v, &ct.w, b"order", &sigma));
+    }
+
     use super::*;
     use ark_ff::UniformRand;
     use rand::{rngs::StdRng, SeedableRng};
