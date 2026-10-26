@@ -1,0 +1,30 @@
+[package]
+name = "sealwell-auction"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[package.metadata.near.reproducible_build]
+image = "sourcescan/cargo-near:0.22.0-rust-1.86.0"
+image_digest = ""
+passed_env = []
+container_build_command = ["cargo", "near", "build", "non-reproducible-wasm", "--locked"]
+
+[dependencies]
+near-sdk = "5.29"
+sealwell-ibe = { path = "../../crates/sealwell-ibe", default-features = false }
+ark-bls12-381 = "0.4"
+ark-ec = "0.4"
+ark-ff = "0.4"
+ark-serialize = "0.4"
+sha2 = "0.10"
+hex = "0.4"
+serde_json = "1"
+
+[dev-dependencies]
+near-sdk = { version = "5.29", features = ["unit-testing"] }
+sealwell-ibe = { path = "../../crates/sealwell-ibe" }
+rand = "0.8"
