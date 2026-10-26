@@ -12,3 +12,5 @@ kp.json
 **/credentials/
 .near-credentials/
 accounts.json
+circuits/node_modules/
+circuits/build/*.ptau

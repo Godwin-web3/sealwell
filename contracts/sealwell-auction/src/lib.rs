@@ -20,7 +20,7 @@ use ark_ff::PrimeField;
 use ark_serialize::CanonicalSerialize;
 use near_sdk::json_types::{U128, U64};
 
-use near_sdk::store::LookupMap;
+use near_sdk::store::{LookupMap, LookupSet};
 use near_sdk::{
     env, log, near, require, AccountId, BorshStorageKey, Gas, NearToken, PanicOnDefault,
     Promise, PromiseError,
@@ -30,6 +30,8 @@ use sha2::{Digest, Sha256};
 pub mod clearing;
 use clearing::{clear_uniform, Order};
 mod host;
+pub mod vk;
+pub mod zk;
 
 const CKD_GAS: Gas = Gas::from_tgas(50);
 const CALLBACK_GAS: Gas = Gas::from_tgas(60);
@@ -43,6 +45,8 @@ pub const MAX_CKD_ATTEMPTS: u32 = 3;
 #[near]
 enum Key {
     Batches,
+    Nullifiers,
+    PendingDeposits,
 }
 
 #[near(serializers = [borsh, json])]
@@ -67,6 +71,35 @@ pub struct Bid {
     /// Base / quote token amounts escrowed in this contract's verifier balance for this bid.
     pub escrow_base: U128,
     pub escrow_quote: U128,
+    /// Shielded bids: relayer that submitted it and its fee (yoctoNEAR, paid from the returned bond).
+    pub relayer: Option<AccountId>,
+    pub fee: U128,
+}
+
+/// Shielded deposit pool: one fixed bundle per note, shared by all pool batches.
+#[near(serializers = [borsh, json])]
+#[derive(Clone, Debug, PartialEq)]
+pub struct PoolConfig {
+    pub base_token: String,
+    pub quote_token: String,
+    pub max_qty: U128,
+    pub max_price: U128,
+    pub bond: U128,
+}
+
+#[near(serializers = [borsh])]
+pub struct Pool {
+    pub cfg: PoolConfig,
+    pub tree: zk::Tree,
+    pub leaves: Vec<[u8; 32]>,
+    pub nullifiers: LookupSet<[u8; 32]>,
+    /// commitment -> depositor, after the NEAR bond and before the token bundle arrives.
+    pub pending: LookupMap<[u8; 32], AccountId>,
+}
+
+#[near(serializers = [json])]
+pub struct PoolDepositMsg {
+    pub deposit: String,
 }
 
 #[near(serializers = [borsh, json])]
@@ -115,6 +148,7 @@ pub struct Contract {
     treasury: AccountId,
     /// NEAR Intents verifier used for escrow and settlement.
     intents: AccountId,
+    pool: Option<Pool>,
 }
 
 #[near(serializers = [json])]
@@ -197,6 +231,7 @@ impl Contract {
             next_batch: 0,
             treasury,
             intents,
+            pool: None,
         }
     }
 
@@ -294,6 +329,8 @@ impl Contract {
             settled: false,
             escrow_base: U128(0),
             escrow_quote: U128(0),
+            relayer: None,
+            fee: U128(0),
         });
         (b.bids.len() - 1) as u32
     }
@@ -477,7 +514,7 @@ impl Contract {
             if bid.settled { continue; }
             bid.settled = true;
             if bid.opened.is_some() {
-                let _ = Promise::new(bid.bidder.clone()).transfer(NearToken::from_yoctonear(bid.bond.0));
+                return_bond(bid);
             } else {
                 slashed += bid.bond.0;
                 log!("EVENT_JSON:{{\"event\":\"bond_slashed\",\"batch\":{},\"bid\":{},\"account\":\"{}\"}}", batch_id.0, i, bid.bidder);
@@ -503,7 +540,7 @@ impl Contract {
         for bid in b.bids.iter_mut() {
             if !bid.settled {
                 bid.settled = true;
-                let _ = Promise::new(bid.bidder.clone()).transfer(NearToken::from_yoctonear(bid.bond.0));
+                return_bond(bid);
                 transfers.push((bid.bidder.clone(), bid.escrow_base.0, bid.escrow_quote.0));
             }
         }
@@ -529,6 +566,10 @@ impl Contract {
     ) -> Vec<U128> {
         require!(env::predecessor_account_id() == self.intents, "only the intents verifier");
         require!(previous_owner_ids.iter().all(|o| *o == sender_id), "escrow must come from the bidder");
+        if let Ok(d) = near_sdk::serde_json::from_str::<PoolDepositMsg>(&msg) {
+            self.pool_receive(sender_id, d, token_ids, amounts);
+            return vec![U128(0); 2];
+        }
         let m: EscrowMsg = near_sdk::serde_json::from_str(&msg).expect("msg must be {batch_id, bid_index}");
         let b = self.batch_mut(m.batch_id.0);
         require!(b.state == BatchState::Open && env::block_timestamp() < b.deadline_ns.0, "batch not open");
@@ -566,6 +607,157 @@ impl Contract {
         );
     }
 
+    // ---------------- shielded pool ----------------
+
+    /// One-time pool setup, by the contract account itself. All pool batches must use these limits.
+    pub fn init_pool(&mut self, cfg: PoolConfig) {
+        require!(env::predecessor_account_id() == env::current_account_id(), "only self");
+        require!(self.pool.is_none(), "pool exists");
+        require!(cfg.max_qty.0 > 0 && cfg.max_price.0 > 0 && cfg.base_token != cfg.quote_token, "bad pool config");
+        cfg.max_qty.0.checked_mul(cfg.max_price.0).expect("overflow");
+        self.pool = Some(Pool {
+            cfg,
+            tree: zk::Tree::new(),
+            leaves: vec![],
+            nullifiers: LookupSet::new(Key::Nullifiers),
+            pending: LookupMap::new(Key::PendingDeposits),
+        });
+    }
+
+    pub fn pool_info(&self) -> near_sdk::serde_json::Value {
+        let p = self.pool.as_ref().expect("no pool");
+        near_sdk::serde_json::json!({
+            "cfg": p.cfg, "root": hex::encode(p.tree.root()), "size": p.tree.next_index,
+            "leaves": p.leaves.iter().map(hex::encode).collect::<Vec<_>>(),
+        })
+    }
+    pub fn is_spent(&self, nullifier_hash_hex: String) -> bool {
+        self.pool.as_ref().expect("no pool").nullifiers.contains(&zk::parse_hex32(&nullifier_hash_hex))
+    }
+
+    /// Deposit step 1: attach exactly the pool bond and name the note commitment (LE field hex).
+    /// Step 2: `intents.mt_batch_transfer_call(this, [base, quote], [max_qty, max_qty*max_price], msg = {"deposit": commitment})`.
+    #[payable]
+    pub fn pool_deposit_bond(&mut self, commitment_hex: String) {
+        let p = self.pool.as_mut().expect("no pool");
+        require!(env::attached_deposit().as_yoctonear() == p.cfg.bond.0, "attach exactly the pool bond");
+        let c = zk::parse_hex32(&commitment_hex);
+        require!(zk::fr_from_le(&c).is_some(), "commitment not a canonical field element");
+        require!(p.pending.get(&c).is_none(), "commitment already pending");
+        p.pending.insert(c, env::predecessor_account_id());
+    }
+
+    /// Give back the bond of a deposit whose tokens never arrived.
+    pub fn pool_cancel_bond(&mut self, commitment_hex: String) {
+        let p = self.pool.as_mut().expect("no pool");
+        let c = zk::parse_hex32(&commitment_hex);
+        require!(p.pending.get(&c) == Some(&env::predecessor_account_id()), "not your pending deposit");
+        p.pending.remove(&c);
+        let _ = Promise::new(env::predecessor_account_id()).transfer(NearToken::from_yoctonear(p.cfg.bond.0));
+    }
+
+    fn pool_receive(&mut self, sender: AccountId, d: PoolDepositMsg, token_ids: Vec<String>, amounts: Vec<U128>) {
+        let p = self.pool.as_mut().expect("no pool");
+        let c = zk::parse_hex32(&d.deposit);
+        require!(p.pending.get(&c) == Some(&sender), "pay the bond first (pool_deposit_bond)");
+        let (ub, uq) = (p.cfg.max_qty, U128(p.cfg.max_qty.0 * p.cfg.max_price.0));
+        require!(token_ids.len() == 2 && amounts.len() == 2, "deposit must be one base+quote bundle");
+        let got = |t: &str| token_ids.iter().zip(amounts.iter()).find(|(x, _)| x.as_str() == t).map(|(_, a)| *a);
+        require!(got(&p.cfg.base_token) == Some(ub) && got(&p.cfg.quote_token) == Some(uq), "deposit must be exactly the pool bundle");
+        p.pending.remove(&c);
+        let g0 = env::used_gas().as_gas();
+        let idx = p.tree.insert(zk::fr_from_le(&c).unwrap());
+        p.leaves.push(c);
+        log!("gas: pool insert (16 Poseidon)={}", env::used_gas().as_gas() - g0);
+        log!("EVENT_JSON:{{\"event\":\"pool_deposit\",\"index\":{},\"commitment\":\"{}\",\"root\":\"{}\"}}", idx, d.deposit, hex::encode(p.tree.root()));
+    }
+
+    /// Check a spend proof and burn its nullifier. Caller must be the bound relayer.
+    fn spend(&mut self, proof_hex: &str, root_hex: &str, nh_hex: &str, ext: [u8; 32]) {
+        let p = self.pool.as_mut().expect("no pool");
+        let root = zk::parse_hex32(root_hex);
+        let nh = zk::parse_hex32(nh_hex);
+        require!(p.tree.is_known_root(&root), "unknown or expired root");
+        require!(zk::fr_from_le(&nh).is_some(), "nullifier hash not canonical");
+        require!(!p.nullifiers.contains(&nh), "note already spent");
+        let proof = hex::decode(proof_hex).expect("proof hex");
+        let g0 = env::used_gas().as_gas();
+        require!(zk::groth16_verify(&proof, &[root, nh, ext]), "invalid proof");
+        log!("gas: groth16 verify={}", env::used_gas().as_gas() - g0);
+        p.nullifiers.insert(nh);
+        log!("EVENT_JSON:{{\"event\":\"nullifier_spent\",\"nullifier_hash\":\"{}\"}}", nh_hex);
+    }
+
+    /// Bid from the pool. The proof shows "I own some unspent pool note" without saying which,
+    /// and binds (batch, ciphertext, payout, relayer, fee). Submitted by the relayer (predecessor).
+    /// The note's bundle and bond become this bid's escrow and bond; payouts go to `payout`.
+    pub fn submit_private_bid(
+        &mut self,
+        batch_id: U64,
+        ciphertext_hex: String,
+        proof_hex: String,
+        root_hex: String,
+        nullifier_hash_hex: String,
+        payout: AccountId,
+        fee: U128,
+    ) -> u32 {
+        let relayer = env::predecessor_account_id();
+        let ct = hex::decode(&ciphertext_hex).expect("hex");
+        require!(ct.len() == sealwell_ibe::ORDER_CT_LEN, "ciphertext must be exactly ORDER_CT_LEN bytes (padded order)");
+        let cfg = self.pool.as_ref().expect("no pool").cfg.clone();
+        require!(fee.0 <= cfg.bond.0, "fee above bond");
+        {
+            let b = self.batches.get(&batch_id.0).expect("no such batch");
+            require!(b.state == BatchState::Open && env::block_timestamp() < b.deadline_ns.0, "batch not open");
+            require!((b.bids.len() as u32) < b.max_bids, "batch full");
+            require!(
+                b.base_token == cfg.base_token && b.quote_token == cfg.quote_token && b.max_qty == cfg.max_qty
+                    && b.max_price == cfg.max_price && b.bond == cfg.bond,
+                "batch limits differ from the pool"
+            );
+        }
+        let _ = host::g2_decompress(&ct[..96]);
+        let ext = zk::ext_hash("bid", batch_id.0, &ct, payout.as_str(), relayer.as_str(), fee.0);
+        self.spend(&proof_hex, &root_hex, &nullifier_hash_hex, ext);
+        let b = self.batch_mut(batch_id.0);
+        let (ub, uq) = (b.escrow_base_unit, b.escrow_quote_unit);
+        b.bids.push(Bid {
+            bidder: payout,
+            ciphertext: ct,
+            bond: cfg.bond,
+            opened: None,
+            settled: false,
+            escrow_base: ub,
+            escrow_quote: uq,
+            relayer: Some(relayer),
+            fee,
+        });
+        (b.bids.len() - 1) as u32
+    }
+
+    /// Withdraw an unused note: bundle + bond (minus relayer fee) to `recipient`.
+    pub fn pool_withdraw(&mut self, proof_hex: String, root_hex: String, nullifier_hash_hex: String, recipient: AccountId, fee: U128) {
+        let relayer = env::predecessor_account_id();
+        let cfg = self.pool.as_ref().expect("no pool").cfg.clone();
+        require!(fee.0 <= cfg.bond.0, "fee above bond");
+        let ext = zk::ext_hash("withdraw", 0, &[], recipient.as_str(), relayer.as_str(), fee.0);
+        self.spend(&proof_hex, &root_hex, &nullifier_hash_hex, ext);
+        if fee.0 > 0 {
+            let _ = Promise::new(relayer).transfer(NearToken::from_yoctonear(fee.0));
+        }
+        let _ = Promise::new(recipient.clone()).transfer(NearToken::from_yoctonear(cfg.bond.0 - fee.0));
+        self.pay_out(&recipient, &cfg.base_token, cfg.max_qty.0, &cfg.quote_token, cfg.max_qty.0 * cfg.max_price.0, u64::MAX);
+        log!("EVENT_JSON:{{\"event\":\"pool_withdraw\",\"recipient\":\"{}\"}}", recipient);
+    }
+
+    pub fn bench_poseidon(&self, n: u32) -> String {
+        let mut x = zk::poseidon(&[ark_bn254::Fr::from(1u64), ark_bn254::Fr::from(2u64)]);
+        let g0 = env::used_gas().as_gas();
+        for _ in 0..n { x = zk::poseidon(&[x, x]); }
+        log!("gas: {} poseidon(2)={}", n, env::used_gas().as_gas() - g0);
+        hex::encode(zk::fr_to_le(&x))
+    }
+
     // ---------------- gas benchmarks (no state change) ----------------
 
     pub fn bench_hash_to_curve(&self, path: String) -> String {
@@ -582,6 +774,15 @@ impl Contract {
     }
 }
 
+
+/// Return a bid's NEAR bond: relayer fee (shielded bids) to the relayer, the rest to the bidder/payout.
+fn return_bond(bid: &Bid) {
+    let fee = if bid.relayer.is_some() { bid.fee.0.min(bid.bond.0) } else { 0 };
+    if fee > 0 {
+        let _ = Promise::new(bid.relayer.clone().unwrap()).transfer(NearToken::from_yoctonear(fee));
+    }
+    let _ = Promise::new(bid.bidder.clone()).transfer(NearToken::from_yoctonear(bid.bond.0 - fee));
+}
 
 #[cfg(test)]
 mod tests {
@@ -861,5 +1062,129 @@ mod tests {
         assert!(calls.iter().any(|c| c.contains("alice") && c.contains("\"16\"") && c.contains("\"520\"")), "{calls:?}");
         assert!(calls.iter().any(|c| c.contains("bob") && c.contains("\"4\"") && c.contains("\"1480\"")), "{calls:?}");
         assert!(calls.iter().any(|c| c.contains("carol") && c.contains("\"10\"") && c.contains("\"1000\"")), "{calls:?}");
+    }
+
+    // ---------------- shielded pool tests ----------------
+    const PB: &str = r#"{"side":"buy","price":"100","qty":"10"}"#;
+    fn vectors() -> near_sdk::serde_json::Value {
+        near_sdk::serde_json::from_str(include_str!("../tests/zk_vectors.json")).unwrap()
+    }
+    fn vs(v: &near_sdk::serde_json::Value, path: &[&str]) -> String {
+        let mut x = v;
+        for k in path { x = &x[*k]; }
+        x.as_str().unwrap().to_string()
+    }
+    fn dec_to_le(d: &str) -> String {
+        hex::encode(zk::fr_to_le(&<ark_bn254::Fr as std::str::FromStr>::from_str(d).ok().unwrap()))
+    }
+    fn pool_setup() -> (Env, near_sdk::serde_json::Value) {
+        let e = setup(5);
+        let mut e = e;
+        testing_env!(ctx(ME, 0, 1).build());
+        e.c.init_pool(PoolConfig { base_token: BASE.into(), quote_token: QUOTE.into(), max_qty: U128(MAXQ), max_price: U128(MAXP), bond: U128(BOND) });
+        let v = vectors();
+        for (i, who) in ["dep0.testnet", "dep1.testnet", "dep2.testnet"].iter().enumerate() {
+            let c = v["leavesHex"][i].as_str().unwrap().to_string();
+            testing_env!(ctx(who, BOND, 2).build());
+            e.c.pool_deposit_bond(c.clone());
+            testing_env!(ctx(INTENTS, 0, 3).build());
+            let r = e.c.mt_on_transfer(acc(who), vec![acc(who), acc(who)], vec![BASE.into(), QUOTE.into()],
+                vec![U128(MAXQ), U128(MAXQ * MAXP)], format!("{{\"deposit\":\"{c}\"}}"));
+            assert_eq!(r, vec![U128(0), U128(0)]);
+        }
+        (e, v)
+    }
+
+    /// Prints the deterministic ciphertext used to generate tests/zk_vectors.json.
+    #[test]
+    #[ignore]
+    fn dump_private_bid_ct() {
+        let mut e = setup(5);
+        println!("CT {}", seal(&mut e, PB).0);
+    }
+
+    #[test]
+    fn poseidon_and_tree_match_circomlibjs() {
+        let v = vectors();
+        let h = zk::poseidon(&[ark_bn254::Fr::from(1u64), ark_bn254::Fr::from(2u64)]);
+        assert_eq!(hex::encode(zk::fr_to_le(&h)), dec_to_le(v["h12"].as_str().unwrap()));
+        let t = zk::Tree::new();
+        assert_eq!(hex::encode(t.root()), dec_to_le(v["zeros"][16].as_str().unwrap()));
+        let (e, v) = pool_setup();
+        let info = e.c.pool_info();
+        assert_eq!(info["root"].as_str().unwrap(), vs(&v, &["bid", "rootHex"]));
+        assert_eq!(info["size"], 3);
+    }
+
+    #[test]
+    fn pool_deposit_requires_bond_and_exact_bundle() {
+        let (mut e, _) = pool_setup();
+        let c = dec_to_le("12345");
+        testing_env!(ctx("x.testnet", BOND - 1, 2).build());
+        assert!(fails(|| e.c.pool_deposit_bond(c.clone())), "bond must be exact");
+        testing_env!(ctx(INTENTS, 0, 3).build());
+        assert!(fails(|| e.c.mt_on_transfer(acc("x.testnet"), vec![acc("x.testnet"), acc("x.testnet")], vec![BASE.into(), QUOTE.into()],
+            vec![U128(MAXQ), U128(MAXQ * MAXP)], format!("{{\"deposit\":\"{c}\"}}"))), "tokens before bond");
+        testing_env!(ctx("x.testnet", BOND, 2).build());
+        e.c.pool_deposit_bond(c.clone());
+        testing_env!(ctx(INTENTS, 0, 3).build());
+        assert!(fails(|| e.c.mt_on_transfer(acc("x.testnet"), vec![acc("x.testnet"), acc("x.testnet")], vec![BASE.into(), QUOTE.into()],
+            vec![U128(MAXQ), U128(999)], format!("{{\"deposit\":\"{c}\"}}"))), "wrong bundle");
+        testing_env!(ctx("x.testnet", 0, 4).build());
+        e.c.pool_cancel_bond(c.clone());
+    }
+
+    #[test]
+    fn private_bid_verifies_binds_and_settles_to_fresh_payout() {
+        let (mut e, v) = pool_setup();
+        let (ct, sigma) = seal(&mut e, PB);
+        let b = &v["bid"];
+        let (proof, root, nh) = (vs(b, &["proofHex"]), vs(b, &["rootHex"]), vs(b, &["nhHex"]));
+        let fee = U128(1000);
+        // Tampering with any bound field breaks the proof.
+        testing_env!(ctx("relayer.testnet", 0, 10).build());
+        assert!(fails(|| e.c.submit_private_bid(U64(0), ct.clone(), proof.clone(), root.clone(), nh.clone(), acc("thief.testnet"), fee)), "payout swap");
+        assert!(fails(|| e.c.submit_private_bid(U64(0), ct.clone(), proof.clone(), root.clone(), nh.clone(), acc("payout-fresh.testnet"), U128(2000))), "fee change");
+        testing_env!(ctx("other-relayer.testnet", 0, 10).build());
+        assert!(fails(|| e.c.submit_private_bid(U64(0), ct.clone(), proof.clone(), root.clone(), nh.clone(), acc("payout-fresh.testnet"), fee)), "relayer swap");
+        testing_env!(ctx("relayer.testnet", 0, 10).build());
+        let mut bad = hex::decode(&proof).unwrap(); bad[200] ^= 1;
+        assert!(fails(|| e.c.submit_private_bid(U64(0), ct.clone(), hex::encode(&bad), root.clone(), nh.clone(), acc("payout-fresh.testnet"), fee)), "bad proof");
+        let i = e.c.submit_private_bid(U64(0), ct.clone(), proof.clone(), root.clone(), nh.clone(), acc("payout-fresh.testnet"), fee);
+        assert!(e.c.is_spent(nh.clone()));
+        assert!(fails(|| e.c.submit_private_bid(U64(0), ct.clone(), proof.clone(), root.clone(), nh.clone(), acc("payout-fresh.testnet"), fee)), "double spend");
+        let pb = e.c.get_batch(U64(0)).unwrap().bids[i as usize].clone();
+        assert_eq!(pb.bidder.as_str(), "payout-fresh.testnet");
+        assert_eq!((pb.escrow_base.0, pb.escrow_quote.0), (MAXQ, MAXQ * MAXP));
+        // A transparent seller to trade against.
+        let os = r#"{"side":"sell","price":"90","qty":"7"}"#;
+        let (j, s1) = bid(&mut e, "seller.testnet", os);
+        escrow(&mut e, "seller.testnet", j);
+        close(&mut e);
+        assert!(callback(&mut e, true));
+        testing_env!(ctx("keeper.testnet", 0, 210).build());
+        e.c.submit_opening(U64(0), i, PB.into(), hex::encode(sigma));
+        e.c.submit_opening(U64(0), j, os.into(), hex::encode(s1));
+        testing_env!(ctx("keeper.testnet", 0, 400).build());
+        assert_eq!(e.c.finalize(U64(0)), Some(U128(90)));
+        let calls = intents_calls();
+        assert!(calls.iter().any(|c| c.contains("payout-fresh") && c.contains("\"17\"") && c.contains("\"370\"")), "{calls:?}");
+        let near_to = |who: &str| near_sdk::test_utils::get_created_receipts().iter().filter(|r| r.receiver_id.as_str() == who)
+            .flat_map(|r| r.actions.clone()).filter_map(|a| match a { near_sdk::mock::MockAction::Transfer { deposit, .. } => Some(deposit.as_yoctonear()), _ => None }).sum::<u128>();
+        assert_eq!(near_to("relayer.testnet"), 1000);
+        assert_eq!(near_to("payout-fresh.testnet"), BOND - 1000);
+    }
+
+    #[test]
+    fn pool_withdraw_with_proof_and_no_reuse() {
+        let (mut e, v) = pool_setup();
+        let w = &v["withdraw"];
+        let (proof, root, nh) = (vs(w, &["proofHex"]), vs(w, &["rootHex"]), vs(w, &["nhHex"]));
+        testing_env!(ctx("relayer.testnet", 0, 10).build());
+        assert!(fails(|| e.c.pool_withdraw(proof.clone(), root.clone(), nh.clone(), acc("thief.testnet"), U128(0))));
+        e.c.pool_withdraw(proof.clone(), root.clone(), nh.clone(), acc("withdraw-fresh.testnet"), U128(0));
+        let calls = intents_calls();
+        assert!(calls.iter().any(|c| c.contains("withdraw-fresh") && c.contains("\"10\"") && c.contains("\"1000\"")), "{calls:?}");
+        assert!(fails(|| e.c.pool_withdraw(proof.clone(), root.clone(), nh.clone(), acc("withdraw-fresh.testnet"), U128(0))), "reuse");
     }
 }
