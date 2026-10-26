@@ -3,7 +3,7 @@
 use crate::vk;
 use ark_bn254::Fr;
 use ark_ff::{BigInteger, PrimeField};
-use light_poseidon::{Poseidon, PoseidonHasher};
+use crate::poseidon_consts;
 use near_sdk::{env, near};
 use sha2::{Digest, Sha256};
 
@@ -24,8 +24,32 @@ pub fn parse_hex32(h: &str) -> [u8; 32] {
     hex::decode(h).ok().and_then(|v| v.try_into().ok()).expect("expected 32-byte hex")
 }
 
+/// circomlib-compatible Poseidon for exactly 2 inputs (t=3, 8 full + 57 partial rounds).
+pub struct Hasher { c: Vec<Fr>, m: [[Fr; 3]; 3] }
+impl Hasher {
+    pub fn new() -> Self {
+        let f = |h: &str| Fr::from_le_bytes_mod_order(&parse_hex32(h));
+        let c = poseidon_consts::C.iter().map(|h| f(h)).collect();
+        let mut m = [[Fr::from(0u64); 3]; 3];
+        for i in 0..9 { m[i / 3][i % 3] = f(poseidon_consts::M[i]); }
+        Hasher { c, m }
+    }
+    pub fn hash2(&self, a: Fr, b: Fr) -> Fr {
+        let pow5 = |x: Fr| { let x2 = x * x; x2 * x2 * x };
+        let mut s = [Fr::from(0u64), a, b];
+        for r in 0..65 {
+            for i in 0..3 { s[i] += self.c[r * 3 + i]; }
+            if r < 4 || r >= 61 { for i in 0..3 { s[i] = pow5(s[i]); } } else { s[0] = pow5(s[0]); }
+            let mut n = [Fr::from(0u64); 3];
+            for i in 0..3 { for j in 0..3 { n[i] += self.m[i][j] * s[j]; } }
+            s = n;
+        }
+        s[0]
+    }
+}
 pub fn poseidon(xs: &[Fr]) -> Fr {
-    Poseidon::<Fr>::new_circom(xs.len()).expect("poseidon params").hash(xs).expect("poseidon")
+    assert!(xs.len() == 2, "poseidon: 2 inputs only");
+    Hasher::new().hash2(xs[0], xs[1])
 }
 
 #[near(serializers = [borsh])]
@@ -39,9 +63,10 @@ pub struct Tree {
 
 impl Tree {
     pub fn new() -> Self {
+        let h = Hasher::new();
         let mut z = vec![Fr::from(0u64)];
         for i in 0..LEVELS {
-            let n = poseidon(&[z[i], z[i]]);
+            let n = h.hash2(z[i], z[i]);
             z.push(n);
         }
         let zeros: Vec<[u8; 32]> = z.iter().map(fr_to_le).collect();
@@ -55,6 +80,7 @@ impl Tree {
     }
     /// Tornado-style insertion: LEVELS Poseidon hashes.
     pub fn insert(&mut self, leaf: Fr) -> u32 {
+        let h = Hasher::new();
         let idx = self.next_index;
         require_lt(idx as u64, 1u64 << LEVELS);
         let mut cur = leaf;
@@ -66,7 +92,7 @@ impl Tree {
             } else {
                 (fr_from_le(&self.filled[l]).unwrap(), cur)
             };
-            cur = poseidon(&[left, right]);
+            cur = h.hash2(left, right);
             i >>= 1;
         }
         let r = fr_to_le(&cur);

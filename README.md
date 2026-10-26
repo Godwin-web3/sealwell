@@ -20,6 +20,7 @@ On NEAR Intents, solver quotes travel in the clear. Whoever sees them first — 
 3. **Close.** After the deadline the contract calls `request_app_private_key` on the MPC contract with a **public** scalar, so the returned identity key becomes public on purpose.
 4. **Verify & decrypt.** Anyone checks the key with one pairing equation, decrypts all bids, and submits openings. Openings are checked deterministically on-chain (the Fujisaki–Okamoto check: `U = H3(σ,M)·G2` via a host multiexp, plus `V ⊕ H2(e(sk_b,U)) = σ` and the AEAD tag). Anyone (not only the bidder) can submit an opening, so a well-formed bid cannot be withheld, and a malformed one can't be opened by anyone and its bond is slashed.
 5. **Escrow (side- and size-blind).** Each batch is opened with public limits `max_qty`, `max_price` and an exact NEAR `bond`. Every bid — buy or sell, big or small — attaches exactly `bond` and escrows exactly one bundle `{max_qty base, max_qty·max_price quote}` in a single `mt_batch_transfer_call(receiver = auction, msg = {batch_id, bid_index})` on the NEAR Intents verifier. Any other amount, a single token, or a second deposit is rejected. Order plaintexts are padded to 64 bytes, so every ciphertext is exactly 208 bytes. Before close, all bids look the same on-chain. An opening is valid only if the bid escrowed the bundle and `qty ≤ max_qty`, `price ≤ max_price`.
+5b. **Shielded participation (optional pool).** Instead of bidding from their own account, a user deposits the same fixed bundle + bond into a **shielded pool** inside the auction contract, under a note commitment `C = Poseidon(nullifier, secret)` that becomes a leaf of an on-chain Poseidon Merkle tree (depth 16, last 30 roots kept). Later, from a fresh account or through a **relayer**, they submit `submit_private_bid` with a Groth16 (BN254) proof that they know an unspent leaf under a recent root; the proof publishes only `nullifierHash = Poseidon(nullifier)` and is bound (`extHash`) to the ciphertext hash, batch, payout account, relayer and fee, so a relayer cannot change any of them. The contract verifies it with NEAR's `alt_bn128` host functions (~32 Tgas). Fills, unused escrow and the bond (minus the relayer fee) go to the **fresh payout account**. An unused note can be withdrawn the same way (`pool_withdraw`). Notes span batches; each note is spent once (one bid or one withdraw).
 6. **Clear & settle.** One uniform clearing price. `finalize` pays every bid its fill plus all unused escrow with `mt_batch_transfer` on the verifier's ledger. Unopened bids get their escrow back but lose their NEAR bond.
    **Tie-breaking:** the price that maximises matched volume; if several prices tie, the **lowest** one. Within a side, fills go by price priority (best price first), then by bid index (earlier submission first).
 
@@ -35,6 +36,7 @@ Crypto details: [`docs/crypto.md`](docs/crypto.md).
 | `contracts/sealwell-auction` — batch lifecycle, CKD call from the contract + on-chain key verification, NEAR bonds, on-chain opening check, slashing, uniform-price clearing (one pair), bid cap, cheap ciphertext format check, CKD retry (max 3) and refund on MPC failure | ✅ Works on testnet (runs below), 12 unit tests incl. a full mocked lifecycle, a simulated CKD failure → refund, and a check that buyer and seller deposits are byte-identical |
 | Escrow + settlement through a NEAR Intents verifier (NEP-245 `mt_batch_transfer_call` fixed bundle / `mt_batch_transfer`) | ✅ Live on testnet against a **self-deployed** verifier (see below). Not run against `intents.near` (mainnet only) |
 | MPC failure → refund | ✅ Forced live (instance configured with a non-CKD domain): MPC call failed, batch `Failed`, bonds + escrow refunded |
+| Shielded pool — `circuits/spend.circom` (circom 2.1.9, 4,342 constraints), Poseidon tree + Groth16 verifier in the contract, `circuits/cli.mjs` (notes, proofs), `circuits/relayer.mjs` | ✅ Live on testnet (v5 below): 3 deposits, 2 relayed private bids, 1 relayed withdraw, cleared and paid to fresh accounts. 4 unit tests verify real proofs. ⚠️ **Hackathon trusted setup** (local Powers of Tau + one phase-2 contribution) — not for production |
 | `cli/` — bidder & keeper | 🟡 Minimal: `cargo run -p sealwell-ibe --example seal` (seal a bid, keeper-decrypt with the released key) |
 | Web demo | ⏳ Not started |
 
@@ -59,6 +61,15 @@ On `sealwell-auction-v3-3005975.testnet`, three bidders deposited test tokens in
 A second instance, `sealwell-auction-v3f-3005975.testnet`, was deliberately initialised with domain 0 (a signing domain). Its CKD call failed in the MPC contract (`Domain 0 has purpose Sign, but this method requires CKD.`), the callback set the batch to `Failed`, and `refund` (`6YMzBJk4ts9sBrcvp6pvUhtRqMmtFbXLSoaRJ4dK5RZ7`) returned the bond and the 1000-quote escrow. 
 
 v4, `sealwell-auction-v4-3006944.testnet`, adds the uniform escrow. A buyer (buy 10 @ 100) and a seller (sell 7 @ 90) each sent a 208-byte ciphertext, a 0.1 NEAR bond, and the same `{10 base, 1000 quote}` bundle (`9twLgtFr…`, `FkR6XaqV…`; same arguments apart from `bid_index`, same gas burnt). `finalize` (`FXKMx6779e21X2N9YtnmzbdDeqRGD8d5n6X6ap2bYrqK`) cleared 7 @ 90 and paid back fills plus unused escrow: buyer 17 base + 370 quote, seller 3 base + 1630 quote. The auction ended holding 0. Details: [`docs/testnet-evidence.md`](docs/testnet-evidence.md).
+
+v5, `sealwell-auction-v5-3010124.testnet`, adds the shielded pool. Three accounts (`sw-bidder0/1/2-…`) each deposited the bundle + 0.1 NEAR under a note commitment. A relayer then submitted two private bids (`V2jbtCkh…`, `EmNctVEX…`; Groth16 verify 32.36 Tgas each) and one withdraw (`3jQTSxaJ…`) whose payouts were three brand-new implicit accounts. `finalize` (`BnXwAXbb4Jsmiw5SM7TFVGzytk6c3wzKncWFk68DXwKE`) cleared 7 @ 90 and paid the fresh accounts. No depositor account appears in any bid, and nothing on-chain maps a nullifier to a commitment. Details and the linkability check: [`docs/testnet-evidence.md`](docs/testnet-evidence.md).
+
+```bash
+cd circuits && npm i && ./setup.sh        # hackathon-only trusted setup → build/ (zkey, vk, wasm)
+node cli.mjs note ~/notes/n1.json         # keep notes OUTSIDE the repo
+node cli.mjs bid-request ~/notes/n1.json <auction> <batch> <ctHex> <payout> <relayer> <feeYocto> req.json
+RELAYER_ACCOUNT=… RELAYER_KEY=… node relayer.mjs req.json
+```
 
 ```bash
 cargo test                                                         # all tests
@@ -88,9 +99,16 @@ Sealwell's contribution: release gated by a NEAR contract's own state; applied t
 - **Escrow (fixed):** every bid escrows the same bundle (`max_qty` base + `max_qty·max_price` quote) in one call, attaches the same bond, and carries a 208-byte ciphertext. So a pre-close observer can't tell side or size; the only bound is the public batch limit. Options considered:
   - (a) A fixed both-sides bundle (**chosen**). It's simple, has no extra leak, and costs capital: each bidder locks the worst case on both sides until `finalize`.
   - (b) Size tiers would lock less capital but reveal the tier, and a bidder would need to post both tokens per tier anyway to hide the side.
-  - (c) Pooled or shielded escrow (commitments plus ZK range or solvency proofs, or a shielded pool) hides even participation amounts. It needs a proof system and a verifier on NEAR, so it's too heavy for now.
+  - (c) A shielded pool — now built for **participation** (see below); amounts stay the fixed bundle.
+- **Shielded pool (who participates):**
+  - *Anonymity set* = all unspent notes in the pool when the bid is made (live run: 3). Small pools give little privacy; a bid made right after a lone deposit is easy to guess.
+  - *Timing correlation:* deposit → bid timing, and amounts the user later moves from the payout account, can link them. Wait for several other deposits; deposits can be made batches in advance.
+  - *Relayer:* can censor or delay a bid (use another relayer or a fresh funded account), learns your IP and request timing, but cannot redirect payouts or raise its fee (all bound in the proof). In the testnet demo one probe account both funded the depositors and relayed — a demo artifact, not a protocol link.
+  - *Fresh accounts:* payouts go to implicit accounts created by the bond transfer, so they need no prior funding; anything you send them afterwards from a known account re-links them.
+  - *Trusted setup:* the Groth16 parameters come from a local, single-party ceremony (`circuits/setup.sh`). Whoever ran it could forge proofs and drain the pool. Production needs a public multi-party ceremony (e.g. Hermez/Perpetual Powers of Tau + an MPC phase 2), or a transparent proof system.
+  - *Not hidden:* that a bid came from the pool, the number of private bids, and the bundle size (fixed per pool).
 - **Still leaks:**
-  - Who participates (bidder accounts are public).
+  - Who participates — for direct bids. Pool bids hide it up to the anonymity set and timing (above).
   - How many bids there are.
   - The timing and order of bids and deposits.
   - The batch limits themselves.

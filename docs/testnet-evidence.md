@@ -108,3 +108,45 @@ Verifier balances (base, quote):
 | auction | — | 0, 0 |
 
 Net: buyer +7 base, −630 quote; seller −7 base, +630 quote. All unused escrow was returned. Raw log: [`logs/e2e4-log.json`](logs/e2e4-log.json).
+
+## v5: shielded deposit pool (Oct 26, 2026, WAT)
+
+Contract `sealwell-auction-v5-3010124.testnet` (deploy `C4K2k8RQfaF8ob1yh2YQQWsjXAgLyvRpSHeAb2rf8qyz`, wasm 413 KB). Verifier and tokens are the same as in v4. Pool config: `{10 base, 1000 quote}` bundle, 0.1 NEAR bond. Full log: [`logs/e2e5-shielded-pool.json`](logs/e2e5-shielded-pool.json). Script: `e2e5.mjs` (uses `circuits/cli.mjs` + `circuits/relayer.mjs`).
+
+**Feasibility (measured)**
+
+| Step | Gas |
+|---|---|
+| Groth16 verify (3 public inputs, `alt_bn128` multiexp + g1_sum + 4-pair pairing check) | **32.36 Tgas** |
+| `submit_private_bid` tx total | 35.5 Tgas |
+| `pool_withdraw` tx total (verify + NEAR + token payout) | 49.1 Tgas |
+| Pool insert, 16 Poseidon(2) hashes in wasm | **45.4 Tgas** (≈2.8 Tgas/hash, `bench_poseidon(16)` 125.4 Tgas incl. constant setup per hash) |
+| Deposit: `pool_deposit_bond` / `mt_batch_transfer_call` tx total | 2.2 / 56.8 Tgas |
+| Proving (snarkjs CLI, 4,342 constraints, depth 16) | 539 ms (first, includes load), 315 ms, 312 ms |
+
+Everything is well under the 300 Tgas limit; no alternative design was needed. Circuit: circom 2.1.9, Poseidon (circomlib), public inputs `[root, nullifierHash, extHash]`. **Trusted setup is a local, single-contributor hackathon ceremony; not for production.**
+
+**Run**
+
+| Step | Account | Tx |
+|---|---|---|
+| init_pool | contract | `6dLhm4C2MDdJ9g3rn8AsaF8Ktn15myiuDwXX48M3QxrT` |
+| deposit 0 (bond, tokens) | `sw-bidder0-4882759.testnet` | `UFZZy3HkzAek6yCy5iFCCGRpUKTR4nZ3kyKXF3eVSJq`, `6EKhptWNo7sfsRCXedrNxnVR9EZSFz1Fsw11hj1e6q6u` |
+| deposit 1 | `sw-bidder1-4882759.testnet` | `38GquxZnchLhV512bNaKmYSydMyiqAFeTN5wS21wnp28`, `8taF8NYmtgPpjPowt7E4ePUf5TJZJRbxBupi5tBxYion` |
+| deposit 2 | `sw-bidder2-4882759.testnet` | `31cQxSTtPV4nCNKajqpUGBDeKi8TTWKnWu4pPEuP7HyQ`, `6J71fdSqywQ6dLeDFuJQCW82vFeUPDwtrhM6RDThPo8V` |
+| open_batch 0 | probe | `CNL3jkkU5Y7LypcxNjCEMg6DMRB7KLj3BuGjq9C71k9t` |
+| private bid 0 (buy 10 @ 100), payout `8d4128d4…ebf2` | relayer (probe) | `V2jbtCkhn8XbYGY3wMdFoZ3GddH2867dsaDiwamSExv` |
+| private bid 1 (sell 7 @ 90), payout `882cc2dd…8004` | relayer | `EmNctVEXKMznqmgqNSaPaABaHVkvTv89FMg66Wpb4vko` |
+| withdraw unused note → `38882ff4…740d` | relayer | `3jQTSxaJi3gvLwQeTsuuFppKWGovCjJqAPB2aJ8EvVR8` |
+| close_batch (CKD) | probe | `5zbF2UzvKKL8FVtX19epusEotGcH5Yp1ctrudZXAXyTP` |
+| openings (by relayer, anyone may open) | relayer | `7zwJaYDfP2fgEdLxvVGLwResRMkNB9nx8MQeH25SR1yu`, `bCQUFhXqMv6y61ZaRcnyU1hEaCzPFRZR7EvQfYYjWhX` |
+| finalize, cleared **7 @ 90** | probe | `BnXwAXbb4Jsmiw5SM7TFVGzytk6c3wzKncWFk68DXwKE` |
+
+Fresh accounts' final state: buyer payout 17 base + 370 quote, seller payout 3 base + 1630 quote, withdraw recipient 10 base + 1000 quote. Each holds 0.09 NEAR (0.1 bond − 0.01 relayer fee), and none existed before the run.
+
+**Unlinkability check.** Notes were spent in a different order from deposit order (the bid from deposit #2 came first, then #0; #1 was withdrawn). On-chain:
+- Deposits show `{depositor, commitment, leaf index}` (`8cc30e…`, `b034c7…`, `0e2e71…`).
+- Spends show `{nullifierHash, root, payout, relayer}` (`d4782b…`, `5101f8…`, `501fb8…`).
+- No depositor account appears in any bid or withdraw.
+- Every spend proves membership against the same 3-leaf root, and `nullifierHash = Poseidon(nullifier)` while the commitment is `Poseidon(nullifier, secret)`, so you can't match them without the secret.
+- Remaining links are timing, the tiny anonymity set (3), and in this demo, that the probe account funded the depositors and also relayed.

@@ -32,6 +32,7 @@ use clearing::{clear_uniform, Order};
 mod host;
 pub mod vk;
 pub mod zk;
+pub mod poseidon_consts;
 
 const CKD_GAS: Gas = Gas::from_tgas(50);
 const CALLBACK_GAS: Gas = Gas::from_tgas(60);

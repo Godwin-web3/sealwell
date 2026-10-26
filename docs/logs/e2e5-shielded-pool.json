@@ -1,0 +1,505 @@
+{
+ "contract": "sealwell-auction-v5-3010124.testnet",
+ "init_pool": [
+  [
+   "tx",
+   "6dLhm4C2MDdJ9g3rn8AsaF8Ktn15myiuDwXX48M3QxrT",
+   "burnt",
+   308526810206
+  ],
+  [
+   "sealwell-auction-v5-3010124.testnet",
+   46782055787579,
+   "",
+   "{\"SuccessValue\":\"\"}"
+  ]
+ ],
+ "bench_poseidon_16": [
+  [
+   "tx",
+   "BGuvA76vWWr8JA5wuFba1KdrNfNCLVkz3seCSe1kfUEv",
+   "burnt",
+   309108541730
+  ],
+  [
+   "sealwell-auction-v5-3010124.testnet",
+   134776735112818,
+   "gas: 16 poseidon(2)=125424655679139",
+   "{\"SuccessValue\":\"ImJmNzk4ZTg4MzBmMTQzYzZkODVkYzRiMWZhMDg2ZGFhZTlmMTA0MDE4OTM4YTIyZDRmMzE3Yzc2MDhjMDQ4MDEi\"}"
+  ]
+ ],
+ "deposit_bond_0": [
+  [
+   "tx",
+   "UFZZy3HkzAek6yCy5iFCCGRpUKTR4nZ3kyKXF3eVSJq",
+   "burnt",
+   312923238930
+  ],
+  [
+   "sealwell-auction-v5-3010124.testnet",
+   1911884705759,
+   "",
+   "{\"SuccessValue\":\"\"}"
+  ]
+ ],
+ "deposit_tokens_0": [
+  [
+   "tx",
+   "6EKhptWNo7sfsRCXedrNxnVR9EZSFz1Fsw11hj1e6q6u",
+   "burnt",
+   322412298215
+  ],
+  [
+   "intents.sealwell-probe-1793003413.testnet",
+   5467632712199,
+   "EVENT_JSON:{\"standard\":\"nep245\",\"version\":\"1.0.0\",\"event\":\"mt_transfer\",\"data\":[{\"old_owner_id\":\"sw-bidder0-4882759.testnet\",\"new_owner_id\":\"sealwell-auction-v5-3010124.testnet\",\"token_ids\":[\"nep141:base.sealwell-probe-1793003413.testnet\",\"nep141:quote.sealwell-probe-1793003413.testnet\"],\"amounts\":[\"10\",\"1000\"]}]}",
+   "{\"SuccessReceiptId\":\"AVFo6bLDVPHVk2zfQKfseDKvtkpDi34B1LzwzS5vxkrY\"}"
+  ],
+  [
+   "sealwell-auction-v5-3010124.testnet",
+   47474532709529,
+   "gas: pool insert (16 Poseidon)=45417630924867 | EVENT_JSON:{\"event\":\"pool_deposit\",\"index\":0,\"commitment\":\"8cc30ea8a7f75b34e08e15f6557f330784150877da3b024192e215727b657617\",\"root\":\"fe00e9f75624cc45164c4137ecc0bfe723cb34ed835d19e715059f6908e2ec0e\"}",
+   "{\"SuccessValue\":\"WyIwIiwiMCJd\"}"
+  ],
+  [
+   "sw-bidder0-4882759.testnet",
+   223182562500,
+   "",
+   "{\"SuccessValue\":\"\"}"
+  ],
+  [
+   "intents.sealwell-probe-1793003413.testnet",
+   3043683596993,
+   "",
+   "{\"SuccessValue\":\"WyIxMCIsIjEwMDAiXQ==\"}"
+  ],
+  [
+   "sw-bidder0-4882759.testnet",
+   223182562500,
+   "",
+   "{\"SuccessValue\":\"\"}"
+  ]
+ ],
+ "deposit_bond_1": [
+  [
+   "tx",
+   "38GquxZnchLhV512bNaKmYSydMyiqAFeTN5wS21wnp28",
+   "burnt",
+   312923238930
+  ],
+  [
+   "sealwell-auction-v5-3010124.testnet",
+   1918496619031,
+   "",
+   "{\"SuccessValue\":\"\"}"
+  ]
+ ],
+ "deposit_tokens_1": [
+  [
+   "tx",
+   "8taF8NYmtgPpjPowt7E4ePUf5TJZJRbxBupi5tBxYion",
+   "burnt",
+   322412298215
+  ],
+  [
+   "intents.sealwell-probe-1793003413.testnet",
+   5382588056192,
+   "EVENT_JSON:{\"standard\":\"nep245\",\"version\":\"1.0.0\",\"event\":\"mt_transfer\",\"data\":[{\"old_owner_id\":\"sw-bidder1-4882759.testnet\",\"new_owner_id\":\"sealwell-auction-v5-3010124.testnet\",\"token_ids\":[\"nep141:base.sealwell-probe-1793003413.testnet\",\"nep141:quote.sealwell-probe-1793003413.testnet\"],\"amounts\":[\"10\",\"1000\"]}]}",
+   "{\"SuccessReceiptId\":\"7K4dpgp1nxJnBqL7yfBGFyL6P3ZRMCc4VgN3PmHisHci\"}"
+  ],
+  [
+   "sealwell-auction-v5-3010124.testnet",
+   47481699983101,
+   "gas: pool insert (16 Poseidon)=45418304762031 | EVENT_JSON:{\"event\":\"pool_deposit\",\"index\":1,\"commitment\":\"b034c700ab1008b8fbaf282a6b4298947e18001ec5cfbca8ddb1ce8b6bda6e27\",\"root\":\"e85ebcd073b58babaf22267e3f2922f8dc8d65a5c329a92692b504dfcc7db816\"}",
+   "{\"SuccessValue\":\"WyIwIiwiMCJd\"}"
+  ],
+  [
+   "sw-bidder1-4882759.testnet",
+   223182562500,
+   "",
+   "{\"SuccessValue\":\"\"}"
+  ],
+  [
+   "intents.sealwell-probe-1793003413.testnet",
+   3043683596993,
+   "",
+   "{\"SuccessValue\":\"WyIxMCIsIjEwMDAiXQ==\"}"
+  ],
+  [
+   "sw-bidder1-4882759.testnet",
+   223182562500,
+   "",
+   "{\"SuccessValue\":\"\"}"
+  ]
+ ],
+ "deposit_bond_2": [
+  [
+   "tx",
+   "31cQxSTtPV4nCNKajqpUGBDeKi8TTWKnWu4pPEuP7HyQ",
+   "burnt",
+   312923238930
+  ],
+  [
+   "sealwell-auction-v5-3010124.testnet",
+   1924670003355,
+   "",
+   "{\"SuccessValue\":\"\"}"
+  ]
+ ],
+ "deposit_tokens_2": [
+  [
+   "tx",
+   "6J71fdSqywQ6dLeDFuJQCW82vFeUPDwtrhM6RDThPo8V",
+   "burnt",
+   322412298215
+  ],
+  [
+   "intents.sealwell-probe-1793003413.testnet",
+   5571246699807,
+   "EVENT_JSON:{\"standard\":\"nep245\",\"version\":\"1.0.0\",\"event\":\"mt_transfer\",\"data\":[{\"old_owner_id\":\"sw-bidder2-4882759.testnet\",\"new_owner_id\":\"sealwell-auction-v5-3010124.testnet\",\"token_ids\":[\"nep141:base.sealwell-probe-1793003413.testnet\",\"nep141:quote.sealwell-probe-1793003413.testnet\"],\"amounts\":[\"10\",\"1000\"]}]}",
+   "{\"SuccessReceiptId\":\"Cp8csYgUDZZwbVYe2HpBFZ9Qvmde5xFTkmn7BDSK9XDe\"}"
+  ],
+  [
+   "sealwell-auction-v5-3010124.testnet",
+   47484554369721,
+   "gas: pool insert (16 Poseidon)=45415017851811 | EVENT_JSON:{\"event\":\"pool_deposit\",\"index\":2,\"commitment\":\"0e2e715bf8924b4306bea2ec7c7ecf5d5d978dd627ac00e3facd590086acff17\",\"root\":\"a84b68984adcaa106e7a7d49db08cbf76db7ee4c47f755b347f51d3f431f3320\"}",
+   "{\"SuccessValue\":\"WyIwIiwiMCJd\"}"
+  ],
+  [
+   "sw-bidder2-4882759.testnet",
+   223182562500,
+   "",
+   "{\"SuccessValue\":\"\"}"
+  ],
+  [
+   "intents.sealwell-probe-1793003413.testnet",
+   3043683596993,
+   "",
+   "{\"SuccessValue\":\"WyIxMCIsIjEwMDAiXQ==\"}"
+  ],
+  [
+   "sw-bidder2-4882759.testnet",
+   223182562500,
+   "",
+   "{\"SuccessValue\":\"\"}"
+  ]
+ ],
+ "pool_after_deposits": {
+  "cfg": {
+   "base_token": "nep141:base.sealwell-probe-1793003413.testnet",
+   "quote_token": "nep141:quote.sealwell-probe-1793003413.testnet",
+   "max_qty": "10",
+   "max_price": "100",
+   "bond": "100000000000000000000000"
+  },
+  "root": "a84b68984adcaa106e7a7d49db08cbf76db7ee4c47f755b347f51d3f431f3320",
+  "size": 3,
+  "leaves": [
+   "8cc30ea8a7f75b34e08e15f6557f330784150877da3b024192e215727b657617",
+   "b034c700ab1008b8fbaf282a6b4298947e18001ec5cfbca8ddb1ce8b6bda6e27",
+   "0e2e715bf8924b4306bea2ec7c7ecf5d5d978dd627ac00e3facd590086acff17"
+  ]
+ },
+ "open_batch": [
+  [
+   "tx",
+   "CNL3jkkU5Y7LypcxNjCEMg6DMRB7KLj3BuGjq9C71k9t",
+   "burnt",
+   320314214755
+  ],
+  [
+   "sealwell-auction-v5-3010124.testnet",
+   1947825868381,
+   "EVENT_JSON:{\"event\":\"batch_opened\",\"batch\":0}",
+   "{\"SuccessValue\":\"IjAi\"}"
+  ]
+ ],
+ "prove_ms": [
+  539,
+  315,
+  312
+ ],
+ "private_bid_0": [
+  [
+   "tx",
+   "V2jbtCkhn8XbYGY3wMdFoZ3GddH2867dsaDiwamSExv",
+   "burnt",
+   368665501765
+  ],
+  [
+   "sealwell-auction-v5-3010124.testnet",
+   35108479162967,
+   "gas: groth16 verify=32361896140210 | EVENT_JSON:{\"event\":\"nullifier_spent\",\"nullifier_hash\":\"d4782bd3a3f664957335290a4c2cd994ebdc21d76af9f6b365b278d9b7725f16\"}",
+   "{\"SuccessValue\":\"MA==\"}"
+  ]
+ ],
+ "private_bid_1": [
+  [
+   "tx",
+   "EmNctVEXKMznqmgqNSaPaABaHVkvTv89FMg66Wpb4vko",
+   "burnt",
+   368665501765
+  ],
+  [
+   "sealwell-auction-v5-3010124.testnet",
+   35158984979855,
+   "gas: groth16 verify=32361896140210 | EVENT_JSON:{\"event\":\"nullifier_spent\",\"nullifier_hash\":\"5101f80df31f75e940e2c640ed63241e274ad6a9541cd2dd8dc1bc8bb6fd942f\"}",
+   "{\"SuccessValue\":\"MQ==\"}"
+  ]
+ ],
+ "pool_withdraw": [
+  [
+   "tx",
+   "3jQTSxaJi3gvLwQeTsuuFppKWGovCjJqAPB2aJ8EvVR8",
+   "burnt",
+   347064778870
+  ],
+  [
+   "sealwell-auction-v5-3010124.testnet",
+   36071527968834,
+   "gas: groth16 verify=32361765322006 | EVENT_JSON:{\"event\":\"nullifier_spent\",\"nullifier_hash\":\"501fb8f30375b1f070c499bac2831c38dce1f6795a407157e19c7edf62acd81f\"} | EVENT_JSON:{\"event\":\"pool_withdraw\",\"recipient\":\"38882ff407b484d1ec996cb865c364ec4be0e03bc2a30643923bc4253a5f740d\"}",
+   "{\"SuccessValue\":\"\"}"
+  ],
+  [
+   "sealwell-probe-1793003413.testnet",
+   223182562500,
+   "",
+   "{\"SuccessValue\":\"\"}"
+  ],
+  [
+   "38882ff407b484d1ec996cb865c364ec4be0e03bc2a30643923bc4253a5f740d",
+   7524947687500,
+   "",
+   "{\"SuccessValue\":\"\"}"
+  ],
+  [
+   "intents.sealwell-probe-1793003413.testnet",
+   4716780845465,
+   "EVENT_JSON:{\"standard\":\"nep245\",\"version\":\"1.0.0\",\"event\":\"mt_transfer\",\"data\":[{\"old_owner_id\":\"sealwell-auction-v5-3010124.testnet\",\"new_owner_id\":\"38882ff407b484d1ec996cb865c364ec4be0e03bc2a30643923bc4253a5f740d\",\"token_ids\":[\"nep141:base.sealwell-probe-1793003413.testnet\",\"nep141:quote.sealwell-probe-1793003413.testnet\"],\"amounts\":[\"10\",\"1000\"],\"memo\":\"sealwell batch 18446744073709551615\"}]}",
+   "{\"SuccessValue\":\"\"}"
+  ],
+  [
+   "sealwell-probe-1793003413.testnet",
+   223182562500,
+   "",
+   "{\"SuccessValue\":\"\"}"
+  ]
+ ],
+ "close_batch": [
+  [
+   "tx",
+   "5zbF2UzvKKL8FVtX19epusEotGcH5Yp1ctrudZXAXyTP",
+   "burnt",
+   309346960305
+  ],
+  [
+   "sealwell-auction-v5-3010124.testnet",
+   6442554535294,
+   "gas before CKD promise: 4290021752263",
+   "{\"SuccessReceiptId\":\"Ee8Y2GJsQnk3ap6VVZ1bQBdSoGew1CbHTtLWDSVSDzxm\"}"
+  ],
+  [
+   "v1.signer-prod.testnet",
+   11607956043083,
+   "request_app_private_key: predecessor=AccountId(\"sealwell-auction-v5-3010124.testnet\"), request=CKDRequestArgs { derivation_path: \"sealwell/batch/0\", app_public_key: AppPublicKeyPV(CKDAppPublicKeyPV { pk1: Bls12381G1PublicKey([161, 127, 166, 177, 93, 21, 227, 188, 62, 222, 87, 23, 206, 226, 66, 146, 78, 202, 37, 138, 203, 235, 65, 5, 24, 114, 135, 110, 15, 231, 191, 222, 29, 4, 47, 117, 187, 245, 136, 119, 163, 247, 29, 34, 193, 195, 159, 53]), pk2: Bls12381G2PublicKey([150, 147, 64, 134, 4, 167,",
+   "{\"SuccessReceiptId\":\"DshmV9PkHwTs5cSVmXJAjzJoTVoCbfcd3VBnDqgFrgJK\"}"
+  ],
+  [
+   "v1.signer-prod.testnet",
+   3825326111499,
+   "",
+   "{\"SuccessValue\":\"eyJiaWdfeSI6ImJsczEyMzgxZzE6NzREODdMU0JvY2hlTXhBN3JqZE1rTnNieUZXNHZEMnREVjJ1U2YyMTczUVBudmdFRWdmQWMyQVNQS0p6bkE1N0VQIiwiYmlnX2MiOiJibHMxMjM4MWcxOjVuczZTaWRvMWdRODhaMlZKVm02eU42THRuMm9"
+  ],
+  [
+   "sealwell-probe-1793003413.testnet",
+   223182562500,
+   "",
+   "{\"SuccessValue\":\"\"}"
+  ],
+  [
+   "sealwell-probe-1793003413.testnet",
+   223182562500,
+   "",
+   "{\"SuccessValue\":\"\"}"
+  ],
+  [
+   "sealwell-auction-v5-3010124.testnet",
+   12658115131749,
+   "gas: unwrap(C-aY)=2518811748108 hash_to_curve=1208332377255 host_pairing_check=6477375177627 | EVENT_JSON:{\"event\":\"batch_key_released\",\"batch\":0,\"key\":\"8177842b844ffb0b9b5b682eb9943c38e980cc466bafc9f09121e3111b1708bd35083b564937110cb8a9727087cfa026\",\"app_id\":\"0a5fb3b8979ea2f702beec213ad5b9377a45c35ba784d43bf25c11c50548aa59\"}",
+   "{\"SuccessValue\":\"dHJ1ZQ==\"}"
+  ],
+  [
+   "sealwell-probe-1793003413.testnet",
+   223182562500,
+   "",
+   "{\"SuccessValue\":\"\"}"
+  ]
+ ],
+ "opening_by_relayer_0": [
+  [
+   "tx",
+   "7zwJaYDfP2fgEdLxvVGLwResRMkNB9nx8MQeH25SR1yu",
+   "burnt",
+   317071722135
+  ],
+  [
+   "sealwell-auction-v5-3010124.testnet",
+   124267739428799,
+   "gas: opening U-check(host)=2355514596498 pairing+mask+aead=119740424077770",
+   "{\"SuccessValue\":\"eyJzaWRlIjoiYnV5IiwicHJpY2UiOiIxMDAiLCJxdHkiOiIxMCJ9\"}"
+  ]
+ ],
+ "opening_by_relayer_1": [
+  [
+   "tx",
+   "bCQUFhXqMv6y61ZaRcnyU1hEaCzPFRZR7EvQfYYjWhX",
+   "burnt",
+   317024038420
+  ],
+  [
+   "sealwell-auction-v5-3010124.testnet",
+   124273730104267,
+   "gas: opening U-check(host)=2355647060214 pairing+mask+aead=119742933483570",
+   "{\"SuccessValue\":\"eyJzaWRlIjoic2VsbCIsInByaWNlIjoiOTAiLCJxdHkiOiI3In0=\"}"
+  ]
+ ],
+ "finalize": [
+  [
+   "tx",
+   "BnXwAXbb4Jsmiw5SM7TFVGzytk6c3wzKncWFk68DXwKE",
+   "burnt",
+   309203909160
+  ],
+  [
+   "sealwell-auction-v5-3010124.testnet",
+   5178472555260,
+   "EVENT_JSON:{\"event\":\"fill\",\"batch\":0,\"bid\":0,\"account\":\"8d4128d45451c826a6414313ab713804eaa25e3a698a9744fa64e7e43fa7ebf2\",\"side\":\"Buy\",\"qty\":\"7\",\"price\":\"90\"} | EVENT_JSON:{\"event\":\"fill\",\"batch\":0,\"bid\":1,\"account\":\"882cc2dda2d32ac9bf3ad262e1d8805145a71255fda579aba7768f8d4bc38004\",\"side\":\"Sell\",\"qty\":\"7\",\"price\":\"90\"}",
+   "{\"SuccessValue\":\"IjkwIg==\"}"
+  ],
+  [
+   "sealwell-probe-1793003413.testnet",
+   223182562500,
+   "",
+   "{\"SuccessValue\":\"\"}"
+  ],
+  [
+   "8d4128d45451c826a6414313ab713804eaa25e3a698a9744fa64e7e43fa7ebf2",
+   7524947687500,
+   "",
+   "{\"SuccessValue\":\"\"}"
+  ],
+  [
+   "sealwell-probe-1793003413.testnet",
+   223182562500,
+   "",
+   "{\"SuccessValue\":\"\"}"
+  ],
+  [
+   "882cc2dda2d32ac9bf3ad262e1d8805145a71255fda579aba7768f8d4bc38004",
+   7524947687500,
+   "",
+   "{\"SuccessValue\":\"\"}"
+  ],
+  [
+   "intents.sealwell-probe-1793003413.testnet",
+   4716567272601,
+   "EVENT_JSON:{\"standard\":\"nep245\",\"version\":\"1.0.0\",\"event\":\"mt_transfer\",\"data\":[{\"old_owner_id\":\"sealwell-auction-v5-3010124.testnet\",\"new_owner_id\":\"8d4128d45451c826a6414313ab713804eaa25e3a698a9744fa64e7e43fa7ebf2\",\"token_ids\":[\"nep141:base.sealwell-probe-1793003413.testnet\",\"nep141:quote.sealwell-probe-1793003413.testnet\"],\"amounts\":[\"17\",\"370\"],\"memo\":\"sealwell batch 0\"}]}",
+   "{\"SuccessValue\":\"\"}"
+  ],
+  [
+   "intents.sealwell-probe-1793003413.testnet",
+   4777811917753,
+   "EVENT_JSON:{\"standard\":\"nep245\",\"version\":\"1.0.0\",\"event\":\"mt_transfer\",\"data\":[{\"old_owner_id\":\"sealwell-auction-v5-3010124.testnet\",\"new_owner_id\":\"882cc2dda2d32ac9bf3ad262e1d8805145a71255fda579aba7768f8d4bc38004\",\"token_ids\":[\"nep141:base.sealwell-probe-1793003413.testnet\",\"nep141:quote.sealwell-probe-1793003413.testnet\"],\"amounts\":[\"3\",\"1630\"],\"memo\":\"sealwell batch 0\"}]}",
+   "{\"SuccessValue\":\"\"}"
+  ],
+  [
+   "sealwell-probe-1793003413.testnet",
+   223182562500,
+   "",
+   "{\"SuccessValue\":\"\"}"
+  ]
+ ],
+ "fresh_balances": {
+  "8d4128d45451c826a6414313ab713804eaa25e3a698a9744fa64e7e43fa7ebf2": {
+   "intents": [
+    "17",
+    "370"
+   ],
+   "near": "90000000000000000000000"
+  },
+  "882cc2dda2d32ac9bf3ad262e1d8805145a71255fda579aba7768f8d4bc38004": {
+   "intents": [
+    "3",
+    "1630"
+   ],
+   "near": "90000000000000000000000"
+  },
+  "38882ff407b484d1ec996cb865c364ec4be0e03bc2a30643923bc4253a5f740d": {
+   "intents": [
+    "10",
+    "1000"
+   ],
+   "near": "90000000000000000000000"
+  }
+ },
+ "final": {
+  "id": "0",
+  "deadline_ns": "1793010374393152343",
+  "reveal_window_ns": "150000000000",
+  "bond": "100000000000000000000000",
+  "state": "Finalized",
+  "revealed_at_ns": "1793010396903193858",
+  "batch_key": "8177842b844ffb0b9b5b682eb9943c38e980cc466bafc9f09121e3111b1708bd35083b564937110cb8a9727087cfa026",
+  "clearing_price": "90",
+  "bids": [
+   {
+    "bidder": "8d4128d45451c826a6414313ab713804eaa25e3a698a9744fa64e7e43fa7ebf2",
+    "ciphertext": "8d45ba4b8ef74357ef8ded3d78cd0422808908ab517432ede461d051e4cb93470e8c614fae672f731053920cd5a6095b0bcf3ff3d22e550ddf42b82feff57002eabfb8208cbdba7958d1e552b78c81215982d675ba5067c3efdfaff7f343c774cc4f900d27386a92cb152dac7e2d914501557f6d61a68ec29dcb68c7a2e723b1cc128722c8054318cae67522733a1dad8b443382fb3cd097276ea593a851413ea7f3f957e7e3b26802db15b2b97b3c0940e115b02a5d1b6970672cf3d01fc29a43825d933d1f3917bc69cdf183b84d5b",
+    "bond": "100000000000000000000000",
+    "opened": {
+     "side": "buy",
+     "price": "100",
+     "qty": "10"
+    },
+    "settled": true,
+    "escrow_base": "10",
+    "escrow_quote": "1000",
+    "relayer": "sealwell-probe-1793003413.testnet",
+    "fee": "10000000000000000000000"
+   },
+   {
+    "bidder": "882cc2dda2d32ac9bf3ad262e1d8805145a71255fda579aba7768f8d4bc38004",
+    "ciphertext": "b9ddd7b2851adc37a0ef55aa35f214044d4f94ea20fa7d301e77f3f2f2ca9d9d130f9df24f17b5b6f042cfc2ebc55a5309f6205d72693df8dae9f5e11e9d0ff4b83566577962936e34825fea269beaeb159565f1b080b1f19cc67ffde06fa8e3d3a1b8ebbe9bbe88bea5effb98eee7d15c273901538dcce3eb20cd897fdaa9ce0a5820749e1efdb2fb62d21ee88f713817c3f7b1713c445cf5c7d94664d29128aa98cbe01c53b847bc361b670f00f3fd9a7415d3fcc189a9a1e9c8ced266a916836c2efe263fc1053fbc22c2bb310347",
+    "bond": "100000000000000000000000",
+    "opened": {
+     "side": "sell",
+     "price": "90",
+     "qty": "7"
+    },
+    "settled": true,
+    "escrow_base": "10",
+    "escrow_quote": "1000",
+    "relayer": "sealwell-probe-1793003413.testnet",
+    "fee": "10000000000000000000000"
+   }
+  ],
+  "base_token": "nep141:base.sealwell-probe-1793003413.testnet",
+  "quote_token": "nep141:quote.sealwell-probe-1793003413.testnet",
+  "max_bids": 5,
+  "max_qty": "10",
+  "max_price": "100",
+  "escrow_base_unit": "10",
+  "escrow_quote_unit": "1000",
+  "ckd_attempts": 1
+ },
+ "depositors": [
+  "sw-bidder0-4882759.testnet",
+  "sw-bidder1-4882759.testnet",
+  "sw-bidder2-4882759.testnet"
+ ],
+ "fresh": [
+  "8d4128d45451c826a6414313ab713804eaa25e3a698a9744fa64e7e43fa7ebf2",
+  "882cc2dda2d32ac9bf3ad262e1d8805145a71255fda579aba7768f8d4bc38004",
+  "38882ff407b484d1ec996cb865c364ec4be0e03bc2a30643923bc4253a5f740d"
+ ]
+}
