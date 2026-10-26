@@ -1,0 +1,558 @@
+{
+ "ft_transfer_0_base": [
+  [
+   "tx",
+   "5gDiKCZcZC8GbpjqSDozzLctQPBUUm3SUpsoUv8Wd6BX",
+   "burnt",
+   311349676335
+  ],
+  [
+   "base.sealwell-probe-1793003413.testnet",
+   1801985766662,
+   "Transfer 10 from sealwell-probe-1793003413.testnet to sw-bidder0-4882759.testnet",
+   "{\"SuccessValue\":\"\"}"
+  ]
+ ],
+ "deposit_to_verifier_0_base": [
+  [
+   "tx",
+   "5pJq1KjZqWkAutSdUrFBmEP2Mk6HpdRLUtAXrptZoE4E",
+   "burnt",
+   312732504070
+  ],
+  [
+   "base.sealwell-probe-1793003413.testnet",
+   2604443733904,
+   "Transfer 10 from sw-bidder0-4882759.testnet to intents.sealwell-probe-1793003413.testnet",
+   "{\"SuccessReceiptId\":\"4uaXKtdk6mDfR63F5LMXVPaJpSx96KVcGjiZqf1Q3s9e\"}"
+  ],
+  [
+   "intents.sealwell-probe-1793003413.testnet",
+   3650501283828,
+   "EVENT_JSON:{\"standard\":\"nep245\",\"version\":\"1.0.0\",\"event\":\"mt_mint\",\"data\":[{\"owner_id\":\"sw-bidder0-4882759.testnet\",\"token_ids\":[\"nep141:base.sealwell-probe-1793003413.testnet\"],\"amounts\":[\"10\"],\"memo\":\"deposit\"}]}",
+   "{\"SuccessValue\":\"IjAi\"}"
+  ],
+  [
+   "sw-bidder0-4882759.testnet",
+   223182562500,
+   "",
+   "{\"SuccessValue\":\"\"}"
+  ],
+  [
+   "base.sealwell-probe-1793003413.testnet",
+   1377377874883,
+   "",
+   "{\"SuccessValue\":\"IjEwIg==\"}"
+  ],
+  [
+   "sw-bidder0-4882759.testnet",
+   223182562500,
+   "",
+   "{\"SuccessValue\":\"\"}"
+  ]
+ ],
+ "ft_transfer_0_quote": [
+  [
+   "tx",
+   "f4g1i9sfsmvKN3DWCzH7myJ3tusSPcn8hbJKAuKudD4",
+   "burnt",
+   311445043765
+  ],
+  [
+   "quote.sealwell-probe-1793003413.testnet",
+   1803178277776,
+   "Transfer 1000 from sealwell-probe-1793003413.testnet to sw-bidder0-4882759.testnet",
+   "{\"SuccessValue\":\"\"}"
+  ]
+ ],
+ "deposit_to_verifier_0_quote": [
+  [
+   "tx",
+   "GZKSxQFs4EbDhzgpcwjkUwkzEJYiugdx6GKZT4Em83ek",
+   "burnt",
+   312827871500
+  ],
+  [
+   "quote.sealwell-probe-1793003413.testnet",
+   2606346196494,
+   "Transfer 1000 from sw-bidder0-4882759.testnet to intents.sealwell-probe-1793003413.testnet",
+   "{\"SuccessReceiptId\":\"CDAqfQweY5eRPnW1EEfP6jaL1GPhCfPdzwWTP3uTVov6\"}"
+  ],
+  [
+   "intents.sealwell-probe-1793003413.testnet",
+   3654298652435,
+   "EVENT_JSON:{\"standard\":\"nep245\",\"version\":\"1.0.0\",\"event\":\"mt_mint\",\"data\":[{\"owner_id\":\"sw-bidder0-4882759.testnet\",\"token_ids\":[\"nep141:quote.sealwell-probe-1793003413.testnet\"],\"amounts\":[\"1000\"],\"memo\":\"deposit\"}]}",
+   "{\"SuccessValue\":\"IjAi\"}"
+  ],
+  [
+   "sw-bidder0-4882759.testnet",
+   223182562500,
+   "",
+   "{\"SuccessValue\":\"\"}"
+  ],
+  [
+   "quote.sealwell-probe-1793003413.testnet",
+   1378179764253,
+   "",
+   "{\"SuccessValue\":\"IjEwMDAi\"}"
+  ],
+  [
+   "sw-bidder0-4882759.testnet",
+   223182562500,
+   "",
+   "{\"SuccessValue\":\"\"}"
+  ]
+ ],
+ "ft_transfer_1_base": [
+  [
+   "tx",
+   "71JLgrmTvSwZQWErkZnQnSny7Hqig6VC6U9uReocNHBu",
+   "burnt",
+   311349676335
+  ],
+  [
+   "base.sealwell-probe-1793003413.testnet",
+   1801985766662,
+   "Transfer 10 from sealwell-probe-1793003413.testnet to sw-bidder1-4882759.testnet",
+   "{\"SuccessValue\":\"\"}"
+  ]
+ ],
+ "deposit_to_verifier_1_base": [
+  [
+   "tx",
+   "BUcFMtkrKLLK9qEb4LDSvsSfKWXPT7tESnYwLP1LHQPr",
+   "burnt",
+   312732504070
+  ],
+  [
+   "base.sealwell-probe-1793003413.testnet",
+   2604443733904,
+   "Transfer 10 from sw-bidder1-4882759.testnet to intents.sealwell-probe-1793003413.testnet",
+   "{\"SuccessReceiptId\":\"Lz4Ezp5tMz1F7SkgtqQaeqvVjMcFF3AW6bx4N1mA9bG\"}"
+  ],
+  [
+   "intents.sealwell-probe-1793003413.testnet",
+   3689306674476,
+   "EVENT_JSON:{\"standard\":\"nep245\",\"version\":\"1.0.0\",\"event\":\"mt_mint\",\"data\":[{\"owner_id\":\"sw-bidder1-4882759.testnet\",\"token_ids\":[\"nep141:base.sealwell-probe-1793003413.testnet\"],\"amounts\":[\"10\"],\"memo\":\"deposit\"}]}",
+   "{\"SuccessValue\":\"IjAi\"}"
+  ],
+  [
+   "sw-bidder1-4882759.testnet",
+   223182562500,
+   "",
+   "{\"SuccessValue\":\"\"}"
+  ],
+  [
+   "base.sealwell-probe-1793003413.testnet",
+   1377377874883,
+   "",
+   "{\"SuccessValue\":\"IjEwIg==\"}"
+  ],
+  [
+   "sw-bidder1-4882759.testnet",
+   223182562500,
+   "",
+   "{\"SuccessValue\":\"\"}"
+  ]
+ ],
+ "ft_transfer_1_quote": [
+  [
+   "tx",
+   "TJinRTiEX7Wd8mLmdQE5t8TjpngA5FrBcV7ERsa4Kw4",
+   "burnt",
+   311445043765
+  ],
+  [
+   "quote.sealwell-probe-1793003413.testnet",
+   1803178277776,
+   "Transfer 1000 from sealwell-probe-1793003413.testnet to sw-bidder1-4882759.testnet",
+   "{\"SuccessValue\":\"\"}"
+  ]
+ ],
+ "deposit_to_verifier_1_quote": [
+  [
+   "tx",
+   "2UnVS4im25FVDNy4hepKSziQs5CcsbaJUG6NR4rUqDRi",
+   "burnt",
+   312827871500
+  ],
+  [
+   "quote.sealwell-probe-1793003413.testnet",
+   2606346196494,
+   "Transfer 1000 from sw-bidder1-4882759.testnet to intents.sealwell-probe-1793003413.testnet",
+   "{\"SuccessReceiptId\":\"5Vs9cfV2mkqo8vbfnCXnPrpZNzDCp6QHvf1zCZsAFJ6y\"}"
+  ],
+  [
+   "intents.sealwell-probe-1793003413.testnet",
+   3652018652435,
+   "EVENT_JSON:{\"standard\":\"nep245\",\"version\":\"1.0.0\",\"event\":\"mt_mint\",\"data\":[{\"owner_id\":\"sw-bidder1-4882759.testnet\",\"token_ids\":[\"nep141:quote.sealwell-probe-1793003413.testnet\"],\"amounts\":[\"1000\"],\"memo\":\"deposit\"}]}",
+   "{\"SuccessValue\":\"IjAi\"}"
+  ],
+  [
+   "sw-bidder1-4882759.testnet",
+   223182562500,
+   "",
+   "{\"SuccessValue\":\"\"}"
+  ],
+  [
+   "quote.sealwell-probe-1793003413.testnet",
+   1378179764253,
+   "",
+   "{\"SuccessValue\":\"IjEwMDAi\"}"
+  ],
+  [
+   "sw-bidder1-4882759.testnet",
+   223182562500,
+   "",
+   "{\"SuccessValue\":\"\"}"
+  ]
+ ],
+ "open_batch": [
+  [
+   "tx",
+   "349HDkKAevbnb9W21fhMXWJTfAp9QuBw73iHMDZzJMUQ",
+   "burnt",
+   320314214755
+  ],
+  [
+   "sealwell-auction-v4-3006944.testnet",
+   1717286409371,
+   "EVENT_JSON:{\"event\":\"batch_opened\",\"batch\":0}",
+   "{\"SuccessValue\":\"IjAi\"}"
+  ]
+ ],
+ "submit_bid_0": [
+  [
+   "tx",
+   "5juegev2XACJ5TLHVpcEQFPqdsNbvY9spbg7pVCsZeXD",
+   "burnt",
+   330089376330
+  ],
+  [
+   "sealwell-auction-v4-3006944.testnet",
+   2031441191205,
+   "",
+   "{\"SuccessValue\":\"MA==\"}"
+  ]
+ ],
+ "escrow_mt_batch_transfer_call_0": [
+  [
+   "tx",
+   "9twLgtFrLkZGFNhkPLYzwQZmFaEwixrNcujSTsXXiAkD",
+   "burnt",
+   320218847325
+  ],
+  [
+   "intents.sealwell-probe-1793003413.testnet",
+   5461673086547,
+   "EVENT_JSON:{\"standard\":\"nep245\",\"version\":\"1.0.0\",\"event\":\"mt_transfer\",\"data\":[{\"old_owner_id\":\"sw-bidder0-4882759.testnet\",\"new_owner_id\":\"sealwell-auction-v4-3006944.testnet\",\"token_ids\":[\"nep141:base.sealwell-probe-1793003413.testnet\",\"nep141:quote.sealwell-probe-1793003413.testnet\"],\"amounts\":[\"10\",\"1000\"]}]}",
+   "{\"SuccessReceiptId\":\"H4NxM4RCqRoM5BonDczJA4RLQLUU2Bf2EeLZFjYfnqjw\"}"
+  ],
+  [
+   "sealwell-auction-v4-3006944.testnet",
+   1835929260376,
+   "EVENT_JSON:{\"event\":\"escrowed\",\"batch\":0,\"bid\":0,\"base\":\"10\",\"quote\":\"1000\"}",
+   "{\"SuccessValue\":\"WyIwIiwiMCJd\"}"
+  ],
+  [
+   "sw-bidder0-4882759.testnet",
+   223182562500,
+   "",
+   "{\"SuccessValue\":\"\"}"
+  ],
+  [
+   "intents.sealwell-probe-1793003413.testnet",
+   3043683596993,
+   "",
+   "{\"SuccessValue\":\"WyIxMCIsIjEwMDAiXQ==\"}"
+  ],
+  [
+   "sw-bidder0-4882759.testnet",
+   223182562500,
+   "",
+   "{\"SuccessValue\":\"\"}"
+  ]
+ ],
+ "submit_bid_1": [
+  [
+   "tx",
+   "5yVwd66N5ygq2XFRrMWYmnDozpg79vWxcThcysfYR3TV",
+   "burnt",
+   330089376330
+  ],
+  [
+   "sealwell-auction-v4-3006944.testnet",
+   2064113440373,
+   "",
+   "{\"SuccessValue\":\"MQ==\"}"
+  ]
+ ],
+ "escrow_mt_batch_transfer_call_1": [
+  [
+   "tx",
+   "FkR6XaqVnqmra5r8o5rkDF7Vf4QJCsahseqG6zaHRv3J",
+   "burnt",
+   320218847325
+  ],
+  [
+   "intents.sealwell-probe-1793003413.testnet",
+   5567498785407,
+   "EVENT_JSON:{\"standard\":\"nep245\",\"version\":\"1.0.0\",\"event\":\"mt_transfer\",\"data\":[{\"old_owner_id\":\"sw-bidder1-4882759.testnet\",\"new_owner_id\":\"sealwell-auction-v4-3006944.testnet\",\"token_ids\":[\"nep141:base.sealwell-probe-1793003413.testnet\",\"nep141:quote.sealwell-probe-1793003413.testnet\"],\"amounts\":[\"10\",\"1000\"]}]}",
+   "{\"SuccessReceiptId\":\"HGE1BB52EFd6BShNqQe7MML2SSUH6vKVfAFXvRZeWRcS\"}"
+  ],
+  [
+   "sealwell-auction-v4-3006944.testnet",
+   1867665213216,
+   "EVENT_JSON:{\"event\":\"escrowed\",\"batch\":0,\"bid\":1,\"base\":\"10\",\"quote\":\"1000\"}",
+   "{\"SuccessValue\":\"WyIwIiwiMCJd\"}"
+  ],
+  [
+   "sw-bidder1-4882759.testnet",
+   223182562500,
+   "",
+   "{\"SuccessValue\":\"\"}"
+  ],
+  [
+   "intents.sealwell-probe-1793003413.testnet",
+   3043683596993,
+   "",
+   "{\"SuccessValue\":\"WyIxMCIsIjEwMDAiXQ==\"}"
+  ],
+  [
+   "sw-bidder1-4882759.testnet",
+   223182562500,
+   "",
+   "{\"SuccessValue\":\"\"}"
+  ]
+ ],
+ "comparison": {
+  "ct_len": [
+   208,
+   208
+  ],
+  "bond": [
+   "100000000000000000000000",
+   "100000000000000000000000"
+  ],
+  "escrow_args": [
+   {
+    "receiver_id": "sealwell-auction-v4-3006944.testnet",
+    "token_ids": [
+     "nep141:base.sealwell-probe-1793003413.testnet",
+     "nep141:quote.sealwell-probe-1793003413.testnet"
+    ],
+    "amounts": [
+     "10",
+     "1000"
+    ],
+    "msg": "{\"batch_id\":\"0\",\"bid_index\":0}"
+   },
+   {
+    "receiver_id": "sealwell-auction-v4-3006944.testnet",
+    "token_ids": [
+     "nep141:base.sealwell-probe-1793003413.testnet",
+     "nep141:quote.sealwell-probe-1793003413.testnet"
+    ],
+    "amounts": [
+     "10",
+     "1000"
+    ],
+    "msg": "{\"batch_id\":\"0\",\"bid_index\":1}"
+   }
+  ]
+ },
+ "close_batch": [
+  [
+   "tx",
+   "39MYYoibdMR8Wt2iTC8TufJ8A87uEw18Sm4wH2sHwVgr",
+   "burnt",
+   309346960305
+  ],
+  [
+   "sealwell-auction-v4-3006944.testnet",
+   6182912317584,
+   "gas before CKD promise: 4162486682187",
+   "{\"SuccessReceiptId\":\"EwVvHtvJfY3jAtsrJxESANmfGF1khzQqoXLvnQgZFo5w\"}"
+  ],
+  [
+   "v1.signer-prod.testnet",
+   11654911946786,
+   "request_app_private_key: predecessor=AccountId(\"sealwell-auction-v4-3006944.testnet\"), request=CKDRequestArgs { derivation_path: \"sealwell/batch/0\", app_public_key: AppPublicKeyPV(CKDAppPublicKeyPV { pk1: Bls12381G1PublicKey([148, 33, 6, 133, 68, 58, 41, 154, 198, 19, 190, 72, 88, 206, 110, 2, 89, 145, 154, 118, 233, 143, 132, 71, 99, 62, 89, 176, 91, 230, 194, 152, 87, 91, 39, 242, 97, 176, 184, 120, 171, 32, 73, 203, 178, 109, 236, 194]), pk2: Bls12381G2PublicKey([166, 185, 139, 174, 38, 232, ",
+   "{\"SuccessReceiptId\":\"7ZqaKgjjtv6P8goYnx8N8nVozJ1TJ8f7XnsQx4uoBeSz\"}"
+  ],
+  [
+   "v1.signer-prod.testnet",
+   3825541673571,
+   "",
+   "{\"SuccessValue\":\"eyJiaWdfeSI6ImJsczEyMzgxZzE6N2F0NkdwRmR3eUhDdWZUSldjWmtXc3VYV0RCbThSUFozNVpMRGdLc1FrSGJqdkNTanlIV1RDYkJvVDdCVzZmWW1kIiwiYmlnX2MiOiJibHMxMjM4MWcxOjZ2SzlTVHRLQTJnZ2NXcnpORjF6S21MaTVEZFF"
+  ],
+  [
+   "sealwell-probe-1793003413.testnet",
+   223182562500,
+   "",
+   "{\"SuccessValue\":\"\"}"
+  ],
+  [
+   "sealwell-probe-1793003413.testnet",
+   223182562500,
+   "",
+   "{\"SuccessValue\":\"\"}"
+  ],
+  [
+   "sealwell-auction-v4-3006944.testnet",
+   12398741955251,
+   "gas: unwrap(C-aY)=2518564921308 hash_to_curve=1208064981555 host_pairing_check=6477056771055 | EVENT_JSON:{\"event\":\"batch_key_released\",\"batch\":0,\"key\":\"b882c3b160882a7a77381eba2890358df03a4e32e89f7cb808e2104f28d9935ecd7f681f2b733bf1c21aa4bab4da2d5f\",\"app_id\":\"3b3a9287b9860009c1e82e6c45518a79326c0b3cb795a0d0ee5e5eab3cdc6519\"}",
+   "{\"SuccessValue\":\"dHJ1ZQ==\"}"
+  ],
+  [
+   "sealwell-probe-1793003413.testnet",
+   223182562500,
+   "",
+   "{\"SuccessValue\":\"\"}"
+  ]
+ ],
+ "submit_opening_0": [
+  [
+   "tx",
+   "HzetcU1eGkyz5dVgzjxCT71vMwWiBretFmKhFa7KyD1a",
+   "burnt",
+   317071722135
+  ],
+  [
+   "sealwell-auction-v4-3006944.testnet",
+   124020841701529,
+   "gas: opening U-check(host)=2355433966410 pairing+mask+aead=119752481566950",
+   "{\"SuccessValue\":\"eyJzaWRlIjoiYnV5IiwicHJpY2UiOiIxMDAiLCJxdHkiOiIxMCJ9\"}"
+  ]
+ ],
+ "submit_opening_1": [
+  [
+   "tx",
+   "DYr6V4CvgDgbgt6KcqZXLTqz9s1vvRjdbAppSXozDwTP",
+   "burnt",
+   317024038420
+  ],
+  [
+   "sealwell-auction-v4-3006944.testnet",
+   124022874920637,
+   "gas: opening U-check(host)=2355305616474 pairing+mask+aead=119751286102482",
+   "{\"SuccessValue\":\"eyJzaWRlIjoic2VsbCIsInByaWNlIjoiOTAiLCJxdHkiOiI3In0=\"}"
+  ]
+ ],
+ "finalize": [
+  [
+   "tx",
+   "FXKMx6779e21X2N9YtnmzbdDeqRGD8d5n6X6ap2bYrqK",
+   "burnt",
+   309203909160
+  ],
+  [
+   "sealwell-auction-v4-3006944.testnet",
+   3173792246232,
+   "EVENT_JSON:{\"event\":\"fill\",\"batch\":0,\"bid\":0,\"account\":\"sw-bidder0-4882759.testnet\",\"side\":\"Buy\",\"qty\":\"7\",\"price\":\"90\"} | EVENT_JSON:{\"event\":\"fill\",\"batch\":0,\"bid\":1,\"account\":\"sw-bidder1-4882759.testnet\",\"side\":\"Sell\",\"qty\":\"7\",\"price\":\"90\"}",
+   "{\"SuccessValue\":\"IjkwIg==\"}"
+  ],
+  [
+   "sw-bidder0-4882759.testnet",
+   223182562500,
+   "",
+   "{\"SuccessValue\":\"\"}"
+  ],
+  [
+   "sw-bidder1-4882759.testnet",
+   223182562500,
+   "",
+   "{\"SuccessValue\":\"\"}"
+  ],
+  [
+   "intents.sealwell-probe-1793003413.testnet",
+   4584305724046,
+   "EVENT_JSON:{\"standard\":\"nep245\",\"version\":\"1.0.0\",\"event\":\"mt_transfer\",\"data\":[{\"old_owner_id\":\"sealwell-auction-v4-3006944.testnet\",\"new_owner_id\":\"sw-bidder0-4882759.testnet\",\"token_ids\":[\"nep141:base.sealwell-probe-1793003413.testnet\",\"nep141:quote.sealwell-probe-1793003413.testnet\"],\"amounts\":[\"17\",\"370\"],\"memo\":\"sealwell batch 0\"}]}",
+   "{\"SuccessValue\":\"\"}"
+  ],
+  [
+   "intents.sealwell-probe-1793003413.testnet",
+   4681814123438,
+   "EVENT_JSON:{\"standard\":\"nep245\",\"version\":\"1.0.0\",\"event\":\"mt_transfer\",\"data\":[{\"old_owner_id\":\"sealwell-auction-v4-3006944.testnet\",\"new_owner_id\":\"sw-bidder1-4882759.testnet\",\"token_ids\":[\"nep141:base.sealwell-probe-1793003413.testnet\",\"nep141:quote.sealwell-probe-1793003413.testnet\"],\"amounts\":[\"3\",\"1630\"],\"memo\":\"sealwell batch 0\"}]}",
+   "{\"SuccessValue\":\"\"}"
+  ],
+  [
+   "sealwell-probe-1793003413.testnet",
+   223182562500,
+   "",
+   "{\"SuccessValue\":\"\"}"
+  ]
+ ],
+ "balances": {
+  "before": {
+   "sw-bidder0-4882759.testnet": [
+    "17",
+    "2370"
+   ],
+   "sw-bidder1-4882759.testnet": [
+    "10",
+    "630"
+   ]
+  },
+  "after": {
+   "sw-bidder0-4882759.testnet": [
+    "24",
+    "1740"
+   ],
+   "sw-bidder1-4882759.testnet": [
+    "3",
+    "2260"
+   ],
+   "sealwell-auction-v4-3006944.testnet": [
+    "0",
+    "0"
+   ]
+  }
+ },
+ "final": {
+  "id": "0",
+  "deadline_ns": "1793007076685464141",
+  "reveal_window_ns": "120000000000",
+  "bond": "100000000000000000000000",
+  "state": "Finalized",
+  "revealed_at_ns": "1793007103608623487",
+  "batch_key": "b882c3b160882a7a77381eba2890358df03a4e32e89f7cb808e2104f28d9935ecd7f681f2b733bf1c21aa4bab4da2d5f",
+  "clearing_price": "90",
+  "bids": [
+   {
+    "bidder": "sw-bidder0-4882759.testnet",
+    "ciphertext": "918541c5d3b6152edb5e7106c5a33b249094afa266e65c47ebdb194d5b61e025cd9d8f9c9be468848112da5069b282d00a2395f2903cbe53050f9d73ebffad9c5ce2480a8e0a58674e4c17f573103a0b29a37c3ab3d6fedec295e28e87a6ea7279d4437994d568c0b347ef3d42c160649c063ddc0e8014979cd6cf6d10d9df5b40895e2cc8d8b156f0b78b3ebbfc7747bef52ecb155b629923ea6c08faeaceceafa5ebc68e34b77caf5b01bd7ffcd6066c25e7305a8992e038738c7347e7fa367b88649f9f83833725d519bf6f465a05",
+    "bond": "100000000000000000000000",
+    "opened": {
+     "side": "buy",
+     "price": "100",
+     "qty": "10"
+    },
+    "settled": true,
+    "escrow_base": "10",
+    "escrow_quote": "1000"
+   },
+   {
+    "bidder": "sw-bidder1-4882759.testnet",
+    "ciphertext": "8a6a3578b8015a63eaf1cee0ffe3554a3a69958a1e9e57c5befc9419f394a5c76d5ae71085252d71e2610d4f7360f85b185aec778df79cf058b300289ea7892054ec931590ea24373f4082dc3313b73e1913bcdcc0f4037e7341d155339d05872637f281a7dc911c8dd7c804eff0ce7e55012a94b4be6bec599adb25ef48b5b881d46e47a29d0691160d46b2686d0ae4d41532d1620a2091d9b885e35262766f44f5513e656d57e2df170a62af0b5b982c0c8b258468fcaf5abbe91b0d3be8c8fc95f7ce0e652c6014c4afbfef5d52b6",
+    "bond": "100000000000000000000000",
+    "opened": {
+     "side": "sell",
+     "price": "90",
+     "qty": "7"
+    },
+    "settled": true,
+    "escrow_base": "10",
+    "escrow_quote": "1000"
+   }
+  ],
+  "base_token": "nep141:base.sealwell-probe-1793003413.testnet",
+  "quote_token": "nep141:quote.sealwell-probe-1793003413.testnet",
+  "max_bids": 5,
+  "max_qty": "10",
+  "max_price": "100",
+  "escrow_base_unit": "10",
+  "escrow_quote_unit": "1000",
+  "ckd_attempts": 1
+ }
+}

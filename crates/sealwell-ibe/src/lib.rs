@@ -41,7 +41,7 @@ pub const NEAR_CKD_DST: &[u8] = b"NEAR BLS12381G1_XMD:SHA-256_SSWU_RO_";
 const TAG_H2: &[u8] = b"sealwell-ibe/v1/H2-mask";
 const TAG_H3: &[u8] = b"sealwell-ibe/v1/H3-r";
 const TAG_H4: &[u8] = b"sealwell-ibe/v1/H4-aead-key";
-const SIGMA_LEN: usize = 32;
+pub const SIGMA_LEN: usize = 32;
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum Error {
@@ -224,6 +224,33 @@ fn aad(u: &G2Affine, v: &[u8; SIGMA_LEN], app_id: &AppId) -> Vec<u8> {
     a
 }
 
+/// Fixed plaintext length for sealed orders, so every ciphertext has the same size
+/// (96 + 32 + ORDER_PT_LEN + 16 = 208 bytes).
+pub const ORDER_PT_LEN: usize = 64;
+/// Ciphertext length of a padded order.
+pub const ORDER_CT_LEN: usize = 96 + SIGMA_LEN + ORDER_PT_LEN + 16;
+
+/// Right-pad an order (JSON) with spaces to `ORDER_PT_LEN`. JSON parsers ignore trailing
+/// whitespace, so the padded plaintext still parses. Returns `None` if the order is too long.
+pub fn pad_order(order: &[u8]) -> Option<Vec<u8>> {
+    if order.len() > ORDER_PT_LEN || order.ends_with(b" ") {
+        return None;
+    }
+    let mut v = order.to_vec();
+    v.resize(ORDER_PT_LEN, b' ');
+    Some(v)
+}
+
+/// Seal an order: pad to the fixed length, then encrypt.
+pub fn encrypt_order<R: RngCore + CryptoRng>(
+    rng: &mut R,
+    mpk: &G2Affine,
+    app_id: &AppId,
+    order: &[u8],
+) -> Option<(Ciphertext, [u8; SIGMA_LEN])> {
+    Some(encrypt(rng, mpk, app_id, &pad_order(order)?))
+}
+
 /// Deterministic encryption given σ (exposed for verification and tests).
 pub fn encrypt_with_sigma(
     mpk: &G2Affine,
@@ -349,6 +376,23 @@ pub fn verify_opening_with_key(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn padded_orders_have_constant_ciphertext_length() {
+        use ark_ff::UniformRand;
+        let mut rng = rand::rngs::OsRng;
+        let mpk = (G2Affine::generator() * Fr::rand(&mut rng)).into_affine();
+        let id = derive_app_id("a.testnet", "sealwell/batch/0");
+        let short = br#"{"side":"buy","price":"1","qty":"1"}"#;
+        let long = br#"{"side":"sell","price":"340282366920938","qty":"99999999999"}"#;
+        let (a, _) = encrypt_order(&mut rng, &mpk, &id, short).unwrap();
+        let (b, _) = encrypt_order(&mut rng, &mpk, &id, long).unwrap();
+        assert_eq!(a.to_bytes().len(), ORDER_CT_LEN);
+        assert_eq!(b.to_bytes().len(), ORDER_CT_LEN);
+        assert!(pad_order(&[b'x'; ORDER_PT_LEN + 1]).is_none());
+        assert!(pad_order(b"{} ").is_none());
+        assert_eq!(std::str::from_utf8(&pad_order(short).unwrap()).unwrap().trim_end().as_bytes(), short);
+    }
+
     #[test]
     fn opening_with_key_matches_fo() {
         let mut rng = StdRng::seed_from_u64(77);

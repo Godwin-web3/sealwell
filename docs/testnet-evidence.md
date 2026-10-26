@@ -80,3 +80,31 @@ Tie-break shown live: volume 7 at every price in [90, 100], so the lowest (90) w
 Raw gas reports: [`docs/logs/v3-settlement-run.json`](logs/v3-settlement-run.json), [`docs/logs/v3-mpc-failure-refund-run.json`](logs/v3-mpc-failure-refund-run.json).
 
 **Not shown live:** a timeout (as opposed to an error) from the MPC, and a `close_batch` retry after failure (both are covered by unit tests only).
+
+## v4: side- and size-blind escrow (Oct 26, 2026, WAT)
+
+Contract `sealwell-auction-v4-3006944.testnet` (deploy `DqSxG5ybkvJ3DBLrPXMbSD8ExnKhZeN6cYxAt1oSAoYE`, init `GabnzmrWimidm14q8jQwBzXsyR6p7JvdDwFa5xhbfAWS`, CKD domain 2). Verifier: `intents.sealwell-probe-1793003413.testnet` (self-deployed near/intents). Batch 0: `max_qty = 10`, `max_price = 100`, bond 0.1 NEAR, so the bundle is `{10 base, 1000 quote}`.
+
+| Step | Buyer `sw-bidder0` (buy 10 @ 100) | Seller `sw-bidder1` (sell 7 @ 90) |
+|---|---|---|
+| submit_bid (208-byte ct, 0.1 NEAR) | `5juegev2XACJ5TLHVpcEQFPqdsNbvY9spbg7pVCsZeXD`, 2.03 Tgas | `5yVwd66N5ygq2XFRrMWYmnDozpg79vWxcThcysfYR3TV`, 2.06 Tgas |
+| escrow `mt_batch_transfer_call` `[base, quote]` / `["10","1000"]` | `9twLgtFrLkZGFNhkPLYzwQZmFaEwixrNcujSTsXXiAkD` | `FkR6XaqVnqmra5r8o5rkDF7Vf4QJCsahseqG6zaHRv3J` |
+| submit_opening | `HzetcU1eGkyz5dVgzjxCT71vMwWiBretFmKhFa7KyD1a`, 124.0 Tgas | `DYr6V4CvgDgbgt6KcqZXLTqz9s1vvRjdbAppSXozDwTP`, 124.0 Tgas |
+
+The two escrow txs carry the same tokens, amounts, deposit (1 yocto) and gas burnt (0.32 Tgas for the tx). The only difference is `bid_index` in `msg`. On-chain escrow after both calls: `[[bidder0,"10","1000"],[bidder1,"10","1000"]]`.
+
+- open_batch `349HDkKAevbnb9W21fhMXWJTfAp9QuBw73iHMDZzJMUQ`
+- close_batch `39MYYoibdMR8Wt2iTC8TufJ8A87uEw18Sm4wH2sHwVgr`: CKD key released, then `Revealed`
+- finalize `FXKMx6779e21X2N9YtnmzbdDeqRGD8d5n6X6ap2bYrqK`: clearing price 90, volume 7
+  - buyer receives 17 base + 370 quote (7 fill + 10 unused base; 1000 − 630)
+  - seller receives 3 base + 1630 quote (10 − 7; 1000 + 630)
+
+Verifier balances (base, quote):
+
+| Account | Before batch | After finalize |
+|---|---|---|
+| buyer | 17, 2370 | 24, 1740 |
+| seller | 10, 630 | 3, 2260 |
+| auction | — | 0, 0 |
+
+Net: buyer +7 base, −630 quote; seller −7 base, +630 quote. All unused escrow was returned. Raw log: [`logs/e2e4-log.json`](logs/e2e4-log.json).

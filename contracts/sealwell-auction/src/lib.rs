@@ -10,7 +10,7 @@
 //! (at most `MAX_CKD_ATTEMPTS` times) or call `refund`, which returns bonds and escrowed tokens.
 //!
 //! Token escrow and settlement go through a NEAR Intents verifier (`intents`): bidders move
-//! verifier balances to this contract with `mt_transfer_call` (msg = {batch_id, bid_index});
+//! verifier balances to this contract with `mt_batch_transfer_call` (one fixed base+quote bundle per bid) (msg = {batch_id, bid_index});
 //! `finalize` pays out with `mt_batch_transfer` on the verifier's internal ledger.
 
 use ark_bls12_381::{Fr, G1Affine, G2Affine};
@@ -38,9 +38,6 @@ const MT_TRANSFER_GAS: Gas = Gas::from_tgas(15);
 /// and opening work. Batches may set a lower cap.
 pub const MAX_BIDS_HARD_CAP: u32 = 12;
 pub const MAX_CKD_ATTEMPTS: u32 = 3;
-/// Ciphertext = U (96, compressed G2) ‖ V (32) ‖ AEAD(M) (≥16-byte tag).
-pub const CT_MIN_LEN: usize = 96 + 32 + 16;
-pub const CT_MAX_LEN: usize = 96 + 32 + 16 + 256;
 
 #[derive(BorshStorageKey)]
 #[near]
@@ -78,7 +75,8 @@ pub struct Batch {
     pub id: U64,
     pub deadline_ns: U64,
     pub reveal_window_ns: U64,
-    pub min_bond: U128,
+    /// Exact NEAR bond every bid must attach (identical for all bids).
+    pub bond: U128,
     pub state: BatchState,
     pub revealed_at_ns: Option<U64>,
     /// Released, pairing-verified identity key `sk_b` (compressed G1, hex). Public by design.
@@ -89,6 +87,12 @@ pub struct Batch {
     pub base_token: String,
     pub quote_token: String,
     pub max_bids: u32,
+    /// Largest allowed order (per bid). Every bid escrows the same bundle:
+    /// `max_qty` base AND `max_qty * max_price` quote, whatever its side or size.
+    pub max_qty: U128,
+    pub max_price: U128,
+    pub escrow_base_unit: U128,
+    pub escrow_quote_unit: U128,
     pub ckd_attempts: u32,
 }
 
@@ -228,11 +232,15 @@ impl Contract {
         &mut self,
         duration_sec: u64,
         reveal_window_sec: u64,
-        min_bond: U128,
+        bond: U128,
         base_token: String,
         quote_token: String,
         max_bids: u32,
+        max_qty: U128,
+        max_price: U128,
     ) -> U64 {
+        require!(max_qty.0 > 0 && max_price.0 > 0, "max_qty/max_price must be > 0");
+        let quote_unit = max_qty.0.checked_mul(max_price.0).expect("max notional overflows");
         require!(max_bids > 0 && max_bids <= MAX_BIDS_HARD_CAP, "max_bids out of range");
         require!(base_token != quote_token, "base == quote");
         let id = self.next_batch;
@@ -244,7 +252,7 @@ impl Contract {
                 id: U64(id),
                 deadline_ns: U64(now + duration_sec * 1_000_000_000),
                 reveal_window_ns: U64(reveal_window_sec * 1_000_000_000),
-                min_bond,
+                bond,
                 state: BatchState::Open,
                 revealed_at_ns: None,
                 batch_key: None,
@@ -253,6 +261,10 @@ impl Contract {
                 base_token,
                 quote_token,
                 max_bids,
+                max_qty,
+                max_price,
+                escrow_base_unit: max_qty,
+                escrow_quote_unit: U128(quote_unit),
                 ckd_attempts: 0,
             },
         );
@@ -265,12 +277,12 @@ impl Contract {
     pub fn submit_bid(&mut self, batch_id: U64, ciphertext_hex: String) -> u32 {
         let deposit = env::attached_deposit().as_yoctonear();
         let ct = hex::decode(&ciphertext_hex).expect("hex");
-        require!(ct.len() >= CT_MIN_LEN && ct.len() <= CT_MAX_LEN, "ciphertext length out of range");
+        require!(ct.len() == sealwell_ibe::ORDER_CT_LEN, "ciphertext must be exactly ORDER_CT_LEN bytes (padded order)");
         let bidder = env::predecessor_account_id();
         let b = self.batch_mut(batch_id.0);
         require!(b.state == BatchState::Open, "batch not open");
         require!(env::block_timestamp() < b.deadline_ns.0, "deadline passed");
-        require!(deposit >= b.min_bond.0, "bond too small");
+        require!(deposit == b.bond.0, "bond must equal the batch bond exactly");
         require!((b.bids.len() as u32) < b.max_bids, "batch full");
         // U must be a valid compressed G2 point in the prime-order subgroup (host check; panics otherwise).
         let _ = host::g2_decompress(&ct[..96]);
@@ -389,6 +401,7 @@ impl Contract {
         );
         let bid = b.bids.get(bid_index as usize).expect("no such bid");
         require!(bid.opened.is_none(), "already opened");
+        let padded = sealwell_ibe::pad_order(plaintext.as_bytes()).expect("order too long or has trailing spaces");
         let sigma: [u8; 32] = hex::decode(&sigma_hex).expect("hex").try_into().expect("sigma len");
         let ctb = &bid.ciphertext;
         require!(ctb.len() >= 96 + 32 + 16, "ciphertext too short");
@@ -396,7 +409,7 @@ impl Contract {
         let key_bytes = hex::decode(b.batch_key.as_ref().unwrap()).unwrap();
         let g0 = gas_used();
         // (1) U == H3(σ, M, app_id)·G2, via host multiexp.
-        let r = sealwell_ibe::opening_scalar(&app_id, plaintext.as_bytes(), &sigma);
+        let r = sealwell_ibe::opening_scalar(&app_id, &padded, &sigma);
         let u = host::g2_msm(&[(G2Affine::generator(), r)]);
         require!(sealwell_ibe::g2_to_bytes(&u)[..] == ctb[..96], "opening does not match ciphertext (U)");
         let g1 = gas_used();
@@ -404,19 +417,15 @@ impl Contract {
         let key = host::g1_decompress(&key_bytes);
         let v: [u8; 32] = ctb[96..128].try_into().unwrap();
         require!(
-            sealwell_ibe::verify_opening_with_key(&app_id, &key, &u, &v, &ctb[128..], plaintext.as_bytes(), &sigma),
+            sealwell_ibe::verify_opening_with_key(&app_id, &key, &u, &v, &ctb[128..], &padded, &sigma),
             "opening does not match ciphertext (V/W)"
         );
         log!("gas: opening U-check(host)={} pairing+mask+aead={}", g1 - g0, gas_used() - g1);
         let order: Order = near_sdk::serde_json::from_str(&plaintext).expect("plaintext is not an order");
         require!(order.qty.0 > 0 && order.price.0 > 0, "empty order");
-        match order.side {
-            clearing::Side::Buy => require!(
-                order.price.0.checked_mul(order.qty.0).map_or(false, |n| n <= bid.escrow_quote.0),
-                "buy order not covered by quote escrow"
-            ),
-            clearing::Side::Sell => require!(order.qty.0 <= bid.escrow_base.0, "sell order not covered by base escrow"),
-        }
+        // Every escrowed bid holds the full bundle, so any order within the batch limits is covered.
+        require!(bid.escrow_base == b.escrow_base_unit && bid.escrow_quote == b.escrow_quote_unit, "bid has no escrow");
+        require!(order.qty.0 <= b.max_qty.0 && order.price.0 <= b.max_price.0, "order exceeds batch limits");
         let b = self.batch_mut(batch_id.0);
         b.bids[bid_index as usize].opened = Some(order.clone());
         order
@@ -524,17 +533,16 @@ impl Contract {
         let b = self.batch_mut(m.batch_id.0);
         require!(b.state == BatchState::Open && env::block_timestamp() < b.deadline_ns.0, "batch not open");
         let (base_t, quote_t) = (b.base_token.clone(), b.quote_token.clone());
+        let (ub, uq) = (b.escrow_base_unit, b.escrow_quote_unit);
         let bid = b.bids.get_mut(m.bid_index as usize).expect("no such bid");
         require!(bid.bidder == sender_id, "not your bid");
-        for (t, a) in token_ids.iter().zip(amounts.iter()) {
-            if *t == base_t {
-                bid.escrow_base = U128(bid.escrow_base.0.checked_add(a.0).expect("overflow"));
-            } else if *t == quote_t {
-                bid.escrow_quote = U128(bid.escrow_quote.0.checked_add(a.0).expect("overflow"));
-            } else {
-                env::panic_str("token not in this batch's pair");
-            }
-        }
+        require!(bid.escrow_base.0 == 0 && bid.escrow_quote.0 == 0, "already escrowed");
+        // Exactly one bundle, in one call: {base: max_qty, quote: max_qty*max_price}. Same for every bid.
+        require!(token_ids.len() == 2 && amounts.len() == 2, "escrow must be one base+quote bundle");
+        let got = |t: &str| token_ids.iter().zip(amounts.iter()).find(|(x, _)| x.as_str() == t).map(|(_, a)| *a);
+        require!(got(&base_t) == Some(ub) && got(&quote_t) == Some(uq), "escrow must be exactly the batch bundle");
+        bid.escrow_base = ub;
+        bid.escrow_quote = uq;
         log!("EVENT_JSON:{{\"event\":\"escrowed\",\"batch\":{},\"bid\":{},\"base\":\"{}\",\"quote\":\"{}\"}}",
             m.batch_id.0, m.bid_index, bid.escrow_base.0, bid.escrow_quote.0);
         vec![U128(0); amounts.len()]
@@ -627,8 +635,13 @@ mod tests {
     const BASE: &str = "nep141:base.sw.testnet";
     const QUOTE: &str = "nep141:quote.sw.testnet";
     const BOND: u128 = 10u128.pow(22);
+    const MAXQ: u128 = 10;
+    const MAXP: u128 = 100;
 
     fn acc(s: &str) -> AccountId { s.parse().unwrap() }
+    fn fails<R>(f: impl FnOnce() -> R) -> bool {
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)).is_err()
+    }
 
     fn ctx(pred: &str, deposit: u128, ts_sec: u64) -> VMContextBuilder {
         let mut c = VMContextBuilder::new();
@@ -649,13 +662,13 @@ mod tests {
         let mpk = (G2Affine::generator() * msk).into_affine();
         testing_env!(ctx("owner.testnet", 0, 0).build());
         let mut c = Contract::new(acc("mpc.testnet"), 2, sealwell_ibe::format_near_g2(&mpk), acc("treasury.testnet"), acc(INTENTS));
-        c.open_batch(100, 100, U128(BOND), BASE.into(), QUOTE.into(), max_bids);
+        c.open_batch(100, 100, U128(BOND), BASE.into(), QUOTE.into(), max_bids, U128(MAXQ), U128(MAXP));
         Env { c, msk, mpk, rng }
     }
 
     fn seal(e: &mut Env, order: &str) -> (String, [u8; 32]) {
         let app_id = sealwell_ibe::derive_app_id(ME, &batch_path(0));
-        let (ct, sigma) = sealwell_ibe::encrypt(&mut e.rng, &e.mpk, &app_id, order.as_bytes());
+        let (ct, sigma) = sealwell_ibe::encrypt_order(&mut e.rng, &e.mpk, &app_id, order.as_bytes()).unwrap();
         (hex::encode(ct.to_bytes()), sigma)
     }
 
@@ -665,11 +678,15 @@ mod tests {
         (e.c.submit_bid(U64(0), ct), sigma)
     }
 
-    fn escrow(e: &mut Env, who: &str, idx: u32, token: &str, amt: u128) {
+    fn bundle_args(who: &str, idx: u32) -> (AccountId, Vec<AccountId>, Vec<String>, Vec<U128>, String) {
+        (acc(who), vec![acc(who), acc(who)], vec![BASE.into(), QUOTE.into()], vec![U128(MAXQ), U128(MAXQ * MAXP)],
+         format!("{{\"batch_id\":\"0\",\"bid_index\":{idx}}}"))
+    }
+
+    fn escrow(e: &mut Env, who: &str, idx: u32) {
         testing_env!(ctx(INTENTS, 0, 20).build());
-        let msg = format!("{{\"batch_id\":\"0\",\"bid_index\":{idx}}}");
-        let r = e.c.mt_on_transfer(acc(who), vec![acc(who)], vec![token.into()], vec![U128(amt)], msg);
-        assert_eq!(r, vec![U128(0)]);
+        let (s, p, t, a, m) = bundle_args(who, idx);
+        assert_eq!(e.c.mt_on_transfer(s, p, t, a, m), vec![U128(0), U128(0)]);
     }
 
     fn close(e: &mut Env) {
@@ -687,10 +704,9 @@ mod tests {
     }
 
     fn callback(e: &mut Env, ok: bool) -> bool {
-        let mut b = ctx(ME, 0, 201);
+        let b = ctx(ME, 0, 201);
         let res = if ok {
             let r = ckd_response(e);
-            b.build();
             testing_env!(b.build(), near_sdk::test_vm_config(), near_sdk::RuntimeFeesConfig::test(), Default::default(),
                 vec![PromiseResult::Successful(near_sdk::serde_json::to_vec(&r).unwrap())]);
             Ok(r)
@@ -704,13 +720,76 @@ mod tests {
 
     fn state(e: &Env) -> BatchState { e.c.get_batch(U64(0)).unwrap().state }
 
+    fn intents_calls() -> Vec<String> {
+        near_sdk::test_utils::get_created_receipts().iter().filter(|r| r.receiver_id.as_str() == INTENTS)
+            .flat_map(|r| r.actions.clone()).filter_map(|a| match a {
+                near_sdk::mock::MockAction::FunctionCallWeight { method_name, args, .. } =>
+                    Some(format!("{}:{}", String::from_utf8_lossy(&method_name), String::from_utf8_lossy(&args))),
+                _ => None,
+            }).collect()
+    }
+
+    #[test]
+    fn buyer_and_seller_deposits_are_indistinguishable() {
+        let mut e = setup(5);
+        let (cb, _) = seal(&mut e, r#"{"side":"buy","price":"100","qty":"10"}"#);
+        let (cs, _) = seal(&mut e, r#"{"side":"sell","price":"1","qty":"1"}"#);
+        assert_eq!(cb.len(), cs.len(), "ciphertext length must not depend on the order");
+        assert_eq!(cb.len() / 2, sealwell_ibe::ORDER_CT_LEN);
+        testing_env!(ctx("alice.testnet", BOND, 10).build());
+        e.c.submit_bid(U64(0), cb);
+        testing_env!(ctx("bob.testnet", BOND, 10).build());
+        e.c.submit_bid(U64(0), cs);
+        escrow(&mut e, "alice.testnet", 0);
+        escrow(&mut e, "bob.testnet", 1);
+        let b = e.c.get_batch(U64(0)).unwrap();
+        let (x, y) = (&b.bids[0], &b.bids[1]);
+        assert_eq!((x.bond, x.escrow_base, x.escrow_quote, x.ciphertext.len()), (y.bond, y.escrow_base, y.escrow_quote, y.ciphertext.len()));
+        // the escrow call arguments differ only in account and bid index
+        let (_, _, ta, aa, _) = bundle_args("alice.testnet", 0);
+        let (_, _, tb, ab, _) = bundle_args("bob.testnet", 1);
+        assert_eq!((ta, aa), (tb, ab));
+    }
+
+    #[test]
+    fn deposits_that_would_leak_are_rejected() {
+        let mut e = setup(5);
+        let (ct, _) = seal(&mut e, r#"{"side":"buy","price":"1","qty":"1"}"#);
+        testing_env!(ctx("alice.testnet", BOND + 1, 10).build());
+        assert!(fails(|| e.c.submit_bid(U64(0), ct.clone())), "bond must be exact");
+        testing_env!(ctx("alice.testnet", BOND, 10).build());
+        assert!(fails(|| e.c.submit_bid(U64(0), format!("{ct}00"))), "ciphertext must be constant size");
+        let mut bad = hex::decode(&ct).unwrap(); bad[0] &= 0x1f; // clear the compression flag
+        assert!(fails(|| e.c.submit_bid(U64(0), hex::encode(&bad))), "U must be a compressed G2 point");
+        let mut bad = hex::decode(&ct).unwrap(); bad[1..96].fill(0xff);
+        assert!(fails(|| e.c.submit_bid(U64(0), hex::encode(&bad))), "U must decode");
+        e.c.submit_bid(U64(0), ct);
+        testing_env!(ctx(INTENTS, 0, 20).build());
+        let m = r#"{"batch_id":"0","bid_index":0}"#.to_string();
+        let a = acc("alice.testnet");
+        // quote only (a 'buyer-shaped' deposit), base only, wrong sizes, wrong token, wrong sender, wrong caller
+        assert!(fails(|| e.c.mt_on_transfer(a.clone(), vec![a.clone()], vec![QUOTE.into()], vec![U128(MAXQ * MAXP)], m.clone())));
+        assert!(fails(|| e.c.mt_on_transfer(a.clone(), vec![a.clone()], vec![BASE.into()], vec![U128(MAXQ)], m.clone())));
+        assert!(fails(|| e.c.mt_on_transfer(a.clone(), vec![a.clone(); 2], vec![BASE.into(), QUOTE.into()], vec![U128(MAXQ), U128(500)], m.clone())));
+        assert!(fails(|| e.c.mt_on_transfer(a.clone(), vec![a.clone(); 2], vec![BASE.into(), "nep141:x.testnet".into()], vec![U128(MAXQ), U128(MAXQ * MAXP)], m.clone())));
+        let (s, p, t, am, _) = bundle_args("bob.testnet", 0);
+        assert!(fails(|| e.c.mt_on_transfer(s, p, t, am, m.clone())));
+        testing_env!(ctx("evil.testnet", 0, 20).build());
+        let (s, p, t, am, mm) = bundle_args("alice.testnet", 0);
+        assert!(fails(|| e.c.mt_on_transfer(s, p, t, am, mm)));
+        escrow(&mut e, "alice.testnet", 0);
+        testing_env!(ctx(INTENTS, 0, 20).build());
+        let (s, p, t, am, mm) = bundle_args("alice.testnet", 0);
+        assert!(fails(|| e.c.mt_on_transfer(s, p, t, am, mm)), "only one bundle per bid");
+    }
+
     #[test]
     fn mpc_failure_then_refund_returns_all_bonds_and_escrow() {
         let mut e = setup(5);
         let (i0, _) = bid(&mut e, "alice.testnet", r#"{"side":"buy","price":"90","qty":"10"}"#);
         let (i1, _) = bid(&mut e, "bob.testnet", r#"{"side":"sell","price":"80","qty":"6"}"#);
-        escrow(&mut e, "alice.testnet", i0, QUOTE, 900);
-        escrow(&mut e, "bob.testnet", i1, BASE, 6);
+        escrow(&mut e, "alice.testnet", i0);
+        escrow(&mut e, "bob.testnet", i1);
         close(&mut e);
         assert_eq!(state(&e), BatchState::Closing);
         assert!(!callback(&mut e, false)); // simulated MPC error / timeout
@@ -720,14 +799,11 @@ mod tests {
         let b = e.c.get_batch(U64(0)).unwrap();
         assert_eq!(b.state, BatchState::Finalized);
         assert!(b.bids.iter().all(|x| x.settled));
-        // receipts: 2 NEAR bond transfers + 2 verifier mt_batch_transfer calls
-        let receipts = near_sdk::test_utils::get_created_receipts();
-        let to_intents = receipts.iter().filter(|r| r.receiver_id.as_str() == INTENTS).count();
-        let bonds = receipts.iter().filter(|r| r.receiver_id.as_str().ends_with("alice.testnet") || r.receiver_id.as_str() == "bob.testnet").count();
-        assert_eq!((to_intents, bonds), (2, 2));
-        // a refunded batch cannot be refunded or closed again
+        let calls = intents_calls();
+        assert_eq!(calls.len(), 2);
+        assert!(calls.iter().all(|c| c.contains("\"10\"") && c.contains("\"1000\"")), "{calls:?}");
         testing_env!(ctx("anyone.testnet", 0, 301).build());
-        assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| e.c.refund(U64(0)))).is_err());
+        assert!(fails(|| e.c.refund(U64(0))));
     }
 
     #[test]
@@ -741,73 +817,49 @@ mod tests {
         let mut e = setup(5);
         for _ in 0..MAX_CKD_ATTEMPTS { close(&mut e); callback(&mut e, false); }
         testing_env!(ctx("keeper.testnet", 0, 200).build());
-        assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| { let _ = e.c.close_batch(U64(0)); })).is_err());
+        assert!(fails(|| { let _ = e.c.close_batch(U64(0)); }));
     }
 
     #[test]
-    fn bid_cap_and_ciphertext_format_enforced() {
+    fn bid_cap_enforced() {
         let mut e = setup(2);
         bid(&mut e, "a.testnet", r#"{"side":"buy","price":"1","qty":"1"}"#);
         bid(&mut e, "b.testnet", r#"{"side":"buy","price":"1","qty":"1"}"#);
-        let (ct, _) = seal(&mut e, "x");
+        let (ct, _) = seal(&mut e, "{}");
         testing_env!(ctx("c.testnet", BOND, 10).build());
-        let full = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| e.c.submit_bid(U64(0), ct.clone())));
-        assert!(full.is_err(), "third bid must hit max_bids");
-        let mut e = setup(5);
-        testing_env!(ctx("c.testnet", BOND, 10).build());
-        let short = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| e.c.submit_bid(U64(0), "00".repeat(100))));
-        assert!(short.is_err());
-        let mut bad = hex::decode(&ct).unwrap(); bad[5] ^= 0xff; // not a G2 point
-        let junk = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| e.c.submit_bid(U64(0), hex::encode(&bad))));
-        assert!(junk.is_err());
-        assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| setup(MAX_BIDS_HARD_CAP + 1))).is_err());
+        assert!(fails(|| e.c.submit_bid(U64(0), ct.clone())), "third bid must hit max_bids");
+        assert!(fails(|| setup(MAX_BIDS_HARD_CAP + 1)));
     }
 
     #[test]
-    fn escrow_only_from_verifier_and_bidder() {
-        let mut e = setup(5);
-        let (i0, _) = bid(&mut e, "alice.testnet", r#"{"side":"buy","price":"90","qty":"10"}"#);
-        testing_env!(ctx("evil.testnet", 0, 20).build());
-        let msg = r#"{"batch_id":"0","bid_index":0}"#.to_string();
-        assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| e.c.mt_on_transfer(acc("alice.testnet"), vec![acc("alice.testnet")], vec![QUOTE.into()], vec![U128(1)], msg.clone()))).is_err());
-        testing_env!(ctx(INTENTS, 0, 20).build());
-        assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| e.c.mt_on_transfer(acc("bob.testnet"), vec![acc("bob.testnet")], vec![QUOTE.into()], vec![U128(1)], msg.clone()))).is_err());
-        assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| e.c.mt_on_transfer(acc("alice.testnet"), vec![acc("alice.testnet")], vec!["nep141:other.testnet".into()], vec![U128(1)], msg.clone()))).is_err());
-        escrow(&mut e, "alice.testnet", i0, QUOTE, 900);
-        assert_eq!(e.c.get_batch(U64(0)).unwrap().bids[0].escrow_quote, U128(900));
-    }
-
-    #[test]
-    fn full_lifecycle_settles_from_escrow_and_rejects_underfunded_opening() {
+    fn full_lifecycle_settles_and_refunds_unused_escrow() {
         let mut e = setup(5);
         let ob = r#"{"side":"buy","price":"90","qty":"10"}"#;
         let os = r#"{"side":"sell","price":"80","qty":"6"}"#;
-        let ou = r#"{"side":"buy","price":"100","qty":"5"}"#;
+        let ox = r#"{"side":"buy","price":"101","qty":"5"}"#; // above max_price
+        let ou = r#"{"side":"buy","price":"95","qty":"5"}"#; // never escrowed
         let (i0, s0) = bid(&mut e, "alice.testnet", ob);
         let (i1, s1) = bid(&mut e, "bob.testnet", os);
-        let (i2, s2) = bid(&mut e, "carol.testnet", ou);
-        escrow(&mut e, "alice.testnet", i0, QUOTE, 1000);
-        escrow(&mut e, "bob.testnet", i1, BASE, 6);
-        escrow(&mut e, "carol.testnet", i2, QUOTE, 499); // < 100*5
+        let (i2, s2) = bid(&mut e, "carol.testnet", ox);
+        let (i3, s3) = bid(&mut e, "dave.testnet", ou);
+        escrow(&mut e, "alice.testnet", i0);
+        escrow(&mut e, "bob.testnet", i1);
+        escrow(&mut e, "carol.testnet", i2);
         close(&mut e);
         assert!(callback(&mut e, true));
         testing_env!(ctx("keeper.testnet", 0, 210).build());
         e.c.submit_opening(U64(0), i0, ob.into(), hex::encode(s0));
         e.c.submit_opening(U64(0), i1, os.into(), hex::encode(s1));
-        let under = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| e.c.submit_opening(U64(0), i2, ou.into(), hex::encode(s2))));
-        assert!(under.is_err(), "underfunded buy must not open");
+        assert!(fails(|| e.c.submit_opening(U64(0), i2, ox.into(), hex::encode(s2))), "over max_price");
+        assert!(fails(|| e.c.submit_opening(U64(0), i3, ou.into(), hex::encode(s3))), "no escrow");
         testing_env!(ctx("keeper.testnet", 0, 400).build());
         // tie-break: volume 6 at every price in [80, 90] → lowest (80)
         assert_eq!(e.c.finalize(U64(0)), Some(U128(80)));
-        let receipts = near_sdk::test_utils::get_created_receipts();
-        let calls: Vec<String> = receipts.iter().filter(|r| r.receiver_id.as_str() == INTENTS).flat_map(|r| r.actions.iter()).filter_map(|a| match a {
-            near_sdk::mock::MockAction::FunctionCallWeight { method_name, args, .. } => Some(format!("{}:{}", String::from_utf8_lossy(method_name), String::from_utf8_lossy(args))),
-            _ => None,
-        }).collect();
-        // alice: +6 base, 1000-480 quote; bob: +480 quote; carol: refund 499 quote
+        let calls = intents_calls();
+        // alice: 10+6 base, 1000-480 quote; bob: 10-6 base, 1000+480 quote; carol: bundle back; dave: nothing escrowed
         assert_eq!(calls.len(), 3, "{calls:?}");
-        assert!(calls.iter().any(|c| c.contains("alice") && c.contains("\"6\"") && c.contains("\"520\"")), "{calls:?}");
-        assert!(calls.iter().any(|c| c.contains("bob") && c.contains("\"480\"") && !c.contains(BASE)), "{calls:?}");
-        assert!(calls.iter().any(|c| c.contains("carol") && c.contains("\"499\"")), "{calls:?}");
+        assert!(calls.iter().any(|c| c.contains("alice") && c.contains("\"16\"") && c.contains("\"520\"")), "{calls:?}");
+        assert!(calls.iter().any(|c| c.contains("bob") && c.contains("\"4\"") && c.contains("\"1480\"")), "{calls:?}");
+        assert!(calls.iter().any(|c| c.contains("carol") && c.contains("\"10\"") && c.contains("\"1000\"")), "{calls:?}");
     }
 }
