@@ -18,8 +18,8 @@ On NEAR Intents, solver quotes travel in the clear. Whoever sees them first — 
    Only that contract can ever request this identity's key.
 2. **Bid.** Solvers encrypt quotes to that identity with Boneh–Franklin IBE using the MPC's public key `mpk` (CKD domain 2). No key exists yet; nobody — including the MPC nodes individually — can read bids.
 3. **Close.** After the deadline the contract calls `request_app_private_key` on the MPC contract with a **public** scalar, so the returned identity key becomes public on purpose.
-4. **Verify & decrypt.** Anyone checks the key with one pairing equation, decrypts all bids, and submits openings. Openings are checked deterministically (Fujisaki–Okamoto re-encryption), so garbage ciphertexts are provably invalid and their bonds can be slashed.
-5. **Clear & settle.** One uniform clearing price; winning fills settle through `intents.near`.
+4. **Verify & decrypt.** Anyone checks the key with one pairing equation, decrypts all bids, and submits openings. Openings are checked deterministically on-chain (the Fujisaki–Okamoto check: `U = H3(σ,M)·G2` via a host multiexp, plus `V ⊕ H2(e(sk_b,U)) = σ` and the AEAD tag). Anyone (not only the bidder) can submit an opening, so a well-formed bid cannot be withheld, and a malformed one can't be opened by anyone and its bond is slashed.
+5. **Clear & settle.** One uniform clearing price. Settlement through `intents.near` is the goal; today the contract **emits `settle_mocked` events** instead.
 
 Key-release is gated by **contract logic**, not a clock or a separate committee, and reuses NEAR's existing MPC trust set (11-of-N, nodes in Intel TDX).
 
@@ -29,9 +29,10 @@ Crypto details: [`docs/crypto.md`](docs/crypto.md).
 
 | Component | State |
 |---|---|
-| `crates/sealwell-ibe` — app_id, RFC 9380 hash-to-G1, BF-IBE + FO (CCA), key verification, CKD unwrap, public opening check, wasm build | ✅ Done, tested (11 tests incl. real testnet vectors) |
-| `contracts/sealwell-auction` — batch lifecycle, CKD call via yield/resume, bonds, clearing, Intents settlement | ⏳ Not started (stub) |
-| `cli/` — bidder & keeper | ⏳ Not started (stub) |
+| `crates/sealwell-ibe` — app_id, RFC 9380 hash-to-G1, BF-IBE + FO (CCA), key verification, CKD unwrap, public opening check, wasm build | ✅ Done, tested (12 tests incl. real testnet vectors) |
+| `contracts/sealwell-auction` — batch lifecycle, CKD call from the contract + on-chain key verification, NEAR bonds, on-chain opening check, slashing, uniform-price clearing (one pair), refund on MPC failure | ✅ Works on testnet (full 3-bid run below), 6 unit tests. Refund path is unit-level only, not exercised live |
+| Settlement via `intents.near` | 🟡 Mocked: `settle_mocked` events only |
+| `cli/` — bidder & keeper | 🟡 Minimal: `cargo run -p sealwell-ibe --example seal` (seal a bid, keeper-decrypt with the released key) |
 | Web demo | ⏳ Not started |
 
 ## Live testnet proof
@@ -42,7 +43,9 @@ A CKD call against `v1.signer-prod.testnet` (contract v3.17.0, domain 2 `Confide
 - Both returned ElGamal-wrapped outputs that unwrap to the **same** key, which verifies `e(key, G2) = e(H(mpk, app_id), mpk)`.
 - [`tests/testnet_vectors.rs`](crates/sealwell-ibe/tests/testnet_vectors.rs) reproduces this in Rust from public values only, and encrypts-to-identity → decrypts with the released key.
 
-Note: these calls were made from a plain account. Calling CKD **from a contract** (the actual design) is the next milestone.
+### From the contract (Oct 26, 2026)
+
+`sealwell-auction-v2-1793005100.testnet` called CKD from contract code, verified the key on-chain with `bls12381_pairing_check`, and ran a full 3-bid batch (2 opened, 1 bad opening rejected → slashed, clearing price 90). The `app_id` the MPC used is the contract's own (`derive_app_id(contract, "sealwell/batch/0")`), and the keeper decrypted a bid off-chain with the released key. All tx hashes and gas numbers: [`docs/testnet-evidence.md`](docs/testnet-evidence.md).
 
 ```bash
 cargo test                                                         # all tests
